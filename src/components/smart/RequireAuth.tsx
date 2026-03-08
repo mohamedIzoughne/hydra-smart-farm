@@ -14,7 +14,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   }
 
   if (!accessToken || !user) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    return <Navigate to="/" replace state={{ from: location.pathname }} />;
   }
 
   return <>{children}</>;
@@ -25,7 +25,7 @@ export function RedirectIfAuth({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user);
 
   if (accessToken && user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;

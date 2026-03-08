@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 
 const navItems = [
-  { to: "/", label: "Tableau de bord", icon: LayoutDashboard },
+  { to: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
   { to: "/parcelles", label: "Mes parcelles", icon: Map },
   { to: "/cultures", label: "Cultures", icon: Sprout },
   { to: "/mesures", label: "Mes mesures", icon: CloudRain },
@@ -21,8 +21,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
 
-  // Don't render layout on auth pages
-  if (["/login", "/signup"].includes(location.pathname)) {
+  // Don't render layout on auth/landing pages
+  if (["/", "/login", "/signup"].includes(location.pathname)) {
     return <>{children}<NotificationToast /></>;
   }
 
@@ -61,7 +61,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         <button
-          onClick={() => { logout(); window.location.href = "/login"; }}
+          onClick={() => { logout(); window.location.href = "/"; }}
           className="flex items-center gap-2 w-full px-2 py-1.5 text-[12px] font-medium text-sidebar-muted hover:text-sidebar-foreground transition-colors rounded"
         >
           <LogOut className="w-3.5 h-3.5" />

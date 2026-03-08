@@ -22,7 +22,7 @@ export default function LoginPage() {
     // Demo credentials bypass
     if (mail === DEMO_EMAIL && password === DEMO_PASSWORD) {
       login(DEMO_USER, DEMO_TOKEN, DEMO_REFRESH);
-      navigate("/", { replace: true });
+      navigate("/dashboard", { replace: true });
       return;
     }
 
@@ -42,7 +42,7 @@ export default function LoginPage() {
 
     if (res.access_token && res.refresh_token && res.user) {
       login(res.user as AuthUser, res.access_token, res.refresh_token);
-      navigate("/", { replace: true });
+      navigate("/dashboard", { replace: true });
     }
   };
 
