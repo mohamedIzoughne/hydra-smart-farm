@@ -6,7 +6,7 @@ import { Modal } from "@/components/smart/Modal";
 import { FormField } from "@/components/smart/FormField";
 import { ConfirmDialog } from "@/components/smart/ConfirmDialog";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, Info } from "lucide-react";
+import { Plus, Pencil, Trash2, Info, CloudRain } from "lucide-react";
 
 export default function MesuresPage() {
   const notify = useNotificationStore((s) => s.notify);
@@ -17,18 +17,15 @@ export default function MesuresPage() {
   const [depuis, setDepuis] = useState("");
   const [jusqu, setJusqu] = useState("");
 
-  // Create modal
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState({ date_prevision: "", temperature: "", pluie: "", humidite: "", source_api: "OpenMeteo" });
   const [createError, setCreateError] = useState("");
 
-  // Edit modal
   const [editItem, setEditItem] = useState<Record<string, unknown> | null>(null);
   const [editForm, setEditForm] = useState({ temperature: "", pluie: "", humidite: "", source_api: "" });
   const [editError, setEditError] = useState("");
   const [recalcBanner, setRecalcBanner] = useState(false);
 
-  // Delete confirm
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -112,14 +109,14 @@ export default function MesuresPage() {
   const columns: Column[] = [
     { key: "id_mesure", label: "ID" },
     { key: "date_prevision", label: "Date prévision", sortable: true },
-    { key: "temperature", label: "Temp. (°C)", sortable: true },
+    { key: "temperature", label: "Temp. (°C)", sortable: true, render: (v) => <span className="font-semibold">{String(v)}°</span> },
     { key: "pluie", label: "Pluie (mm)", sortable: true },
     { key: "humidite", label: "Humidité (%)", render: (v) => v != null ? String(v) : "—" },
     { key: "source_api", label: "Source" },
     {
       key: "actions", label: "Actions", render: (_, row) => (
         <div className="table-actions" onClick={(e) => e.stopPropagation()}>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => {
             setEditItem(row);
             setEditForm({
               temperature: String(row.temperature ?? ""),
@@ -131,7 +128,7 @@ export default function MesuresPage() {
           }}>
             <Pencil className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(row.id_mesure as number)}>
+          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-destructive" onClick={() => setDeleteId(row.id_mesure as number)}>
             <Trash2 className="w-4 h-4" />
           </Button>
         </div>
@@ -140,35 +137,43 @@ export default function MesuresPage() {
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="page-header">
-        <h1 className="page-title">Mesures Climatiques</h1>
-        <Button onClick={() => { setCreateOpen(true); setCreateError(""); }} disabled={!parcelleId}>
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-10 h-10 rounded-xl bg-accent/[0.08] flex items-center justify-center">
+            <CloudRain className="w-5 h-5 text-accent" />
+          </div>
+          <div>
+            <h1 className="page-title">Mesures Climatiques</h1>
+            <p className="text-sm text-muted-foreground">Relevés météo par parcelle</p>
+          </div>
+        </div>
+        <Button onClick={() => { setCreateOpen(true); setCreateError(""); }} disabled={!parcelleId} className="rounded-full px-5 shadow-md shadow-primary/15">
           <Plus className="w-4 h-4" /> Ajouter mesure
         </Button>
       </div>
 
       {recalcBanner && (
-        <div className="flex items-center gap-2 bg-accent/10 border border-accent/20 text-accent rounded-lg px-4 py-2 text-sm animate-slide-in">
-          <Info className="w-4 h-4" /> Le besoin J+1 a été recalculé automatiquement.
+        <div className="flex items-center gap-2.5 bg-accent/[0.08] border border-accent/20 text-accent rounded-2xl px-5 py-3 text-sm font-medium animate-slide-in">
+          <Info className="w-4 h-4 shrink-0" /> Le besoin J+1 a été recalculé automatiquement.
         </div>
       )}
 
-      <div className="filter-bar">
+      <div className="filter-bar rounded-2xl">
         <div className="flex-1 max-w-xs">
-          <label className="text-xs text-muted-foreground block mb-1">Parcelle</label>
-          <select className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={parcelleId} onChange={(e) => setParcelleId(e.target.value)}>
+          <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground block mb-1.5">Parcelle</label>
+          <select className="field-input py-1.5" value={parcelleId} onChange={(e) => setParcelleId(e.target.value)}>
             {!parcelleOptions.length && <option value="">Chargement...</option>}
             {parcelleOptions.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
         </div>
         <div>
-          <label className="text-xs text-muted-foreground block mb-1">Depuis</label>
-          <input type="date" className="border rounded-md px-3 py-2 text-sm bg-background" value={depuis} onChange={(e) => setDepuis(e.target.value)} />
+          <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground block mb-1.5">Depuis</label>
+          <input type="date" className="field-input py-1.5" value={depuis} onChange={(e) => setDepuis(e.target.value)} />
         </div>
         <div>
-          <label className="text-xs text-muted-foreground block mb-1">Jusqu'à</label>
-          <input type="date" className="border rounded-md px-3 py-2 text-sm bg-background" value={jusqu} onChange={(e) => setJusqu(e.target.value)} />
+          <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground block mb-1.5">Jusqu'à</label>
+          <input type="date" className="field-input py-1.5" value={jusqu} onChange={(e) => setJusqu(e.target.value)} />
         </div>
       </div>
 
@@ -176,27 +181,27 @@ export default function MesuresPage() {
 
       {/* Create Modal */}
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Ajouter une mesure" footer={
-        <><Button variant="outline" onClick={() => setCreateOpen(false)}>Annuler</Button><Button onClick={handleCreate}>Ajouter</Button></>
+        <><Button variant="outline" onClick={() => setCreateOpen(false)} className="rounded-xl">Annuler</Button><Button onClick={handleCreate} className="rounded-xl">Ajouter</Button></>
       }>
-        <div className="space-y-4">
-          {createError && <p className="text-sm text-destructive bg-destructive/10 p-2 rounded">{createError}</p>}
+        <div className="space-y-5">
+          {createError && <p className="text-sm text-destructive bg-destructive/[0.08] border border-destructive/20 p-3 rounded-xl">{createError}</p>}
           <FormField label="Date prévision" required>
-            <input type="date" className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={createForm.date_prevision} onChange={(e) => setCreateForm({ ...createForm, date_prevision: e.target.value })} />
+            <input type="date" className="field-input" value={createForm.date_prevision} onChange={(e) => setCreateForm({ ...createForm, date_prevision: e.target.value })} />
           </FormField>
           <div className="grid grid-cols-2 gap-4">
             <FormField label="Température (°C)" required>
-              <input type="number" step="0.1" min="-50" max="60" className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={createForm.temperature} onChange={(e) => setCreateForm({ ...createForm, temperature: e.target.value })} />
+              <input type="number" step="0.1" min="-50" max="60" className="field-input" value={createForm.temperature} onChange={(e) => setCreateForm({ ...createForm, temperature: e.target.value })} />
             </FormField>
             <FormField label="Pluie (mm)" required>
-              <input type="number" step="0.1" min="0" className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={createForm.pluie} onChange={(e) => setCreateForm({ ...createForm, pluie: e.target.value })} />
+              <input type="number" step="0.1" min="0" className="field-input" value={createForm.pluie} onChange={(e) => setCreateForm({ ...createForm, pluie: e.target.value })} />
             </FormField>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <FormField label="Humidité (%)">
-              <input type="number" step="0.1" min="0" max="100" className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={createForm.humidite} onChange={(e) => setCreateForm({ ...createForm, humidite: e.target.value })} />
+              <input type="number" step="0.1" min="0" max="100" className="field-input" value={createForm.humidite} onChange={(e) => setCreateForm({ ...createForm, humidite: e.target.value })} />
             </FormField>
             <FormField label="Source API">
-              <input className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={createForm.source_api} onChange={(e) => setCreateForm({ ...createForm, source_api: e.target.value })} />
+              <input className="field-input" value={createForm.source_api} onChange={(e) => setCreateForm({ ...createForm, source_api: e.target.value })} />
             </FormField>
           </div>
         </div>
@@ -204,31 +209,30 @@ export default function MesuresPage() {
 
       {/* Edit Modal */}
       <Modal open={!!editItem} onClose={() => setEditItem(null)} title="Modifier la mesure" footer={
-        <><Button variant="outline" onClick={() => setEditItem(null)}>Annuler</Button><Button onClick={handleEdit}>Enregistrer</Button></>
+        <><Button variant="outline" onClick={() => setEditItem(null)} className="rounded-xl">Annuler</Button><Button onClick={handleEdit} className="rounded-xl">Enregistrer</Button></>
       }>
-        <div className="space-y-4">
-          {editError && <p className="text-sm text-destructive bg-destructive/10 p-2 rounded">{editError}</p>}
-          <p className="text-xs text-muted-foreground">Date et parcelle ne sont pas modifiables.</p>
+        <div className="space-y-5">
+          {editError && <p className="text-sm text-destructive bg-destructive/[0.08] border border-destructive/20 p-3 rounded-xl">{editError}</p>}
+          <p className="text-xs text-muted-foreground bg-muted/50 rounded-xl px-3 py-2">Date et parcelle ne sont pas modifiables.</p>
           <div className="grid grid-cols-2 gap-4">
             <FormField label="Température (°C)">
-              <input type="number" step="0.1" min="-50" max="60" className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={editForm.temperature} onChange={(e) => setEditForm({ ...editForm, temperature: e.target.value })} />
+              <input type="number" step="0.1" min="-50" max="60" className="field-input" value={editForm.temperature} onChange={(e) => setEditForm({ ...editForm, temperature: e.target.value })} />
             </FormField>
             <FormField label="Pluie (mm)">
-              <input type="number" step="0.1" min="0" className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={editForm.pluie} onChange={(e) => setEditForm({ ...editForm, pluie: e.target.value })} />
+              <input type="number" step="0.1" min="0" className="field-input" value={editForm.pluie} onChange={(e) => setEditForm({ ...editForm, pluie: e.target.value })} />
             </FormField>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <FormField label="Humidité (%)">
-              <input type="number" step="0.1" min="0" max="100" className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={editForm.humidite} onChange={(e) => setEditForm({ ...editForm, humidite: e.target.value })} />
+              <input type="number" step="0.1" min="0" max="100" className="field-input" value={editForm.humidite} onChange={(e) => setEditForm({ ...editForm, humidite: e.target.value })} />
             </FormField>
             <FormField label="Source API">
-              <input className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={editForm.source_api} onChange={(e) => setEditForm({ ...editForm, source_api: e.target.value })} />
+              <input className="field-input" value={editForm.source_api} onChange={(e) => setEditForm({ ...editForm, source_api: e.target.value })} />
             </FormField>
           </div>
         </div>
       </Modal>
 
-      {/* Delete confirm */}
       <ConfirmDialog
         open={deleteId !== null}
         onClose={() => setDeleteId(null)}

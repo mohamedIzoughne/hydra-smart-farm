@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Inbox } from "lucide-react";
 
 export interface Column {
   key: string;
@@ -39,36 +39,36 @@ export function DataTable({ columns, rows, loading, emptyMessage = "Aucune donn√
 
   if (loading) {
     return (
-      <div className="border rounded-lg overflow-hidden">
+      <div className="border border-border/60 rounded-2xl overflow-hidden bg-card">
         <div className="animate-pulse space-y-0">
-          <div className="h-11 bg-muted" />
-          {[...Array(5)].map((_, i) => <div key={i} className="h-12 border-t bg-muted/40" />)}
+          <div className="h-12 bg-muted/60" />
+          {[...Array(5)].map((_, i) => <div key={i} className="h-14 border-t border-border/40 bg-muted/20" />)}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="border rounded-lg overflow-hidden">
+    <div className="border border-border/60 rounded-2xl overflow-hidden bg-card shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-muted/60">
+            <tr className="bg-muted/40 border-b border-border/60">
               {columns.map((col) => (
                 <th
                   key={col.key}
                   className={cn(
-                    "px-4 py-3 text-left font-medium text-muted-foreground",
-                    col.sortable && "cursor-pointer select-none hover:text-foreground transition-colors"
+                    "px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground",
+                    col.sortable && "cursor-pointer select-none hover:text-foreground transition-colors duration-200"
                   )}
                   onClick={() => col.sortable && toggleSort(col.key)}
                 >
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-1.5">
                     {col.label}
                     {col.sortable && (
                       sortKey === col.key
-                        ? sortDir === "asc" ? <ArrowUp className="w-3.5 h-3.5" /> : <ArrowDown className="w-3.5 h-3.5" />
-                        : <ArrowUpDown className="w-3.5 h-3.5 opacity-40" />
+                        ? sortDir === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                        : <ArrowUpDown className="w-3 h-3 opacity-30" />
                     )}
                   </span>
                 </th>
@@ -77,16 +77,25 @@ export function DataTable({ columns, rows, loading, emptyMessage = "Aucune donn√
           </thead>
           <tbody>
             {sorted.length === 0 ? (
-              <tr><td colSpan={columns.length} className="px-4 py-10 text-center text-muted-foreground">{emptyMessage}</td></tr>
+              <tr>
+                <td colSpan={columns.length} className="px-5 py-16 text-center">
+                  <Inbox className="w-10 h-10 mx-auto mb-3 text-muted-foreground/20" />
+                  <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+                </td>
+              </tr>
             ) : (
               sorted.map((row, i) => (
                 <tr
                   key={i}
-                  className={cn("border-t hover:bg-muted/30 transition-colors", onRowClick && "cursor-pointer")}
+                  className={cn(
+                    "border-t border-border/40 transition-colors duration-150",
+                    onRowClick && "cursor-pointer",
+                    "hover:bg-primary/[0.03]",
+                  )}
                   onClick={() => onRowClick?.(row)}
                 >
                   {columns.map((col) => (
-                    <td key={col.key} className="px-4 py-3">
+                    <td key={col.key} className="px-5 py-3.5">
                       {col.render ? col.render(row[col.key], row) : String(row[col.key] ?? "‚Äî")}
                     </td>
                   ))}

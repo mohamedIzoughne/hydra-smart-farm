@@ -7,15 +7,19 @@ interface BadgeProps {
 }
 
 const badgeStyles = {
-  success: "bg-success/15 text-success border-success/20",
-  warning: "bg-warning/15 text-warning border-warning/20",
-  danger: "bg-destructive/15 text-destructive border-destructive/20",
+  success: "bg-success/12 text-success border-success/25 shadow-sm shadow-success/5",
+  warning: "bg-warning/12 text-warning border-warning/25 shadow-sm shadow-warning/5",
+  danger: "bg-destructive/12 text-destructive border-destructive/25 shadow-sm shadow-destructive/5",
   neutral: "bg-muted text-muted-foreground border-border",
 };
 
 export function Badge({ value, type = "neutral", className }: BadgeProps) {
   return (
-    <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border", badgeStyles[type], className)}>
+    <span className={cn(
+      "inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide border",
+      badgeStyles[type],
+      className,
+    )}>
       {value}
     </span>
   );

@@ -6,14 +6,14 @@ import { Badge, stressBadgeType } from "@/components/smart/Badge";
 import { ConfirmDialog } from "@/components/smart/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, History, Droplets, Trash2 } from "lucide-react";
+import { AlertTriangle, History, Droplets, Trash2, ShieldAlert } from "lucide-react";
 
 function ProgressBar({ value, max }: { value: number; max: number }) {
   const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
   const color = pct > 80 ? "bg-destructive" : pct > 50 ? "bg-warning" : "bg-success";
   return (
-    <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-      <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
+    <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
+      <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${pct}%` }} />
     </div>
   );
 }
@@ -27,7 +27,6 @@ export default function AlertesPage() {
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
-  // Historique filters
   const [filterNiveau, setFilterNiveau] = useState("");
   const [filterParcelle, setFilterParcelle] = useState("");
   const [parcelleOptions, setParcelleOptions] = useState<{ id: number; label: string }[]>([]);
@@ -72,10 +71,10 @@ export default function AlertesPage() {
 
   const niveauColor = (n: string) => {
     switch (n) {
-      case "Critique": return "border-destructive/40 bg-destructive/5";
-      case "Élevé": return "border-warning/40 bg-warning/5";
-      case "Moyen": return "border-secondary/40 bg-secondary/5";
-      default: return "border-success/40 bg-success/5";
+      case "Critique": return "border-destructive/30 bg-destructive/[0.04]";
+      case "Élevé": return "border-warning/30 bg-warning/[0.04]";
+      case "Moyen": return "border-secondary/30 bg-secondary/[0.04]";
+      default: return "border-success/30 bg-success/[0.04]";
     }
   };
 
@@ -92,7 +91,7 @@ export default function AlertesPage() {
     {
       key: "actions", label: "", render: (_, row) => (
         <div onClick={(e) => e.stopPropagation()}>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(row.id_stress as number)}>
+          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-destructive" onClick={() => setDeleteId(row.id_stress as number)}>
             <Trash2 className="w-4 h-4" />
           </Button>
         </div>
@@ -101,64 +100,75 @@ export default function AlertesPage() {
   ];
 
   return (
-    <div className="space-y-4">
-      <h1 className="page-title">Alertes de Stress Hydrique</h1>
+    <div className="space-y-6">
+      <div className="flex items-center gap-2.5">
+        <div className="w-10 h-10 rounded-xl bg-destructive/[0.08] flex items-center justify-center">
+          <ShieldAlert className="w-5 h-5 text-destructive" />
+        </div>
+        <div>
+          <h1 className="page-title">Alertes de Stress Hydrique</h1>
+          <p className="text-sm text-muted-foreground">Surveillance et historique</p>
+        </div>
+      </div>
 
       {/* Tabs */}
-      <div className="flex border-b">
+      <div className="flex gap-1 bg-muted/50 rounded-2xl p-1 w-fit">
         <button
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === "alertes" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+          className={`flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${tab === "alertes" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
           onClick={() => setTab("alertes")}
         >
-          <AlertTriangle className="w-4 h-4 inline mr-1.5" />Alertes Actives ({alertes.length})
+          <AlertTriangle className="w-4 h-4" />Alertes ({alertes.length})
         </button>
         <button
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === "historique" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+          className={`flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${tab === "historique" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
           onClick={() => setTab("historique")}
         >
-          <History className="w-4 h-4 inline mr-1.5" />Historique Complet
+          <History className="w-4 h-4" />Historique
         </button>
       </div>
 
       {tab === "alertes" && (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {loading ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              {[1, 2, 3].map((i) => <div key={i} className="h-44 bg-muted rounded-xl animate-pulse" />)}
+            <div className="grid gap-5 md:grid-cols-2">
+              {[1, 2, 3].map((i) => <div key={i} className="h-48 bg-muted/40 rounded-2xl animate-pulse" />)}
             </div>
           ) : alertes.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <AlertTriangle className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p>Aucune alerte active. Tout va bien ! 🌱</p>
+            <div className="text-center py-16">
+              <div className="w-16 h-16 rounded-2xl bg-success/[0.08] flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="w-7 h-7 text-success/40" />
+              </div>
+              <p className="text-lg font-bold font-heading text-foreground mb-1">Aucune alerte active</p>
+              <p className="text-sm text-muted-foreground">Tout va bien ! 🌱</p>
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-5 md:grid-cols-2">
               {alertes.map((a, i) => {
                 const deficit = Number(a.deficit_calcule || 0);
                 const capacite = Number(a.capacite_source || 1);
                 const suggestions = a.cultures_suggere ? String(a.cultures_suggere).split(",").map((s) => s.trim()) : [];
                 return (
-                  <div key={i} className={`rounded-xl border-2 p-5 transition-shadow hover:shadow-md ${niveauColor(String(a.niveau_stress))}`}>
-                    <div className="flex items-start justify-between mb-3">
+                  <div key={i} className={`group rounded-2xl border-2 p-6 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${niveauColor(String(a.niveau_stress))}`}>
+                    <div className="flex items-start justify-between mb-4">
                       <div>
-                        <p className="font-semibold font-heading">Parcelle #{String(a.id_parcelle)}</p>
+                        <p className="text-lg font-bold font-heading text-foreground">Parcelle #{String(a.id_parcelle)}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">{String(a.date_calcul)}</p>
                       </div>
-                      <Badge value={String(a.niveau_stress)} type={stressBadgeType(String(a.niveau_stress))} className="text-sm px-3 py-1" />
+                      <Badge value={String(a.niveau_stress)} type={stressBadgeType(String(a.niveau_stress))} className="text-xs px-3 py-1" />
                     </div>
 
-                    <div className="space-y-2 text-sm mb-3">
+                    <div className="space-y-2.5 text-sm mb-4">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Déficit / Capacité</span>
-                        <span className="font-medium">{deficit.toLocaleString("fr-FR")} / {capacite.toLocaleString("fr-FR")} L</span>
+                        <span className="font-bold">{deficit.toLocaleString("fr-FR")} / {capacite.toLocaleString("fr-FR")} L</span>
                       </div>
                       <ProgressBar value={deficit} max={capacite} />
                     </div>
 
                     {suggestions.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mb-3">
+                      <div className="flex flex-wrap gap-1.5 mb-4">
                         {suggestions.map((s, j) => (
-                          <span key={j} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-accent/15 text-accent border border-accent/20">
+                          <span key={j} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-accent/[0.08] text-accent border border-accent/15">
                             <Droplets className="w-3 h-3" />{s}
                           </span>
                         ))}
@@ -166,10 +176,10 @@ export default function AlertesPage() {
                     )}
 
                     {a.recommandation && (
-                      <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{String(a.recommandation)}</p>
+                      <p className="text-xs text-muted-foreground mb-4 line-clamp-2">{String(a.recommandation)}</p>
                     )}
 
-                    <Button variant="outline" size="sm" className="w-full" onClick={() => nav(`/parcelles/${a.id_parcelle}`)}>
+                    <Button variant="outline" size="sm" className="w-full rounded-xl font-semibold" onClick={() => nav(`/parcelles/${a.id_parcelle}`)}>
                       Voir la parcelle
                     </Button>
                   </div>
@@ -182,18 +192,24 @@ export default function AlertesPage() {
 
       {tab === "historique" && (
         <>
-          <div className="filter-bar">
-            <select className="border rounded-md px-3 py-2 text-sm bg-background" value={filterNiveau} onChange={(e) => setFilterNiveau(e.target.value)}>
-              <option value="">Tous niveaux</option>
-              <option value="Critique">Critique</option>
-              <option value="Élevé">Élevé</option>
-              <option value="Moyen">Moyen</option>
-              <option value="Faible">Faible</option>
-            </select>
-            <select className="border rounded-md px-3 py-2 text-sm bg-background" value={filterParcelle} onChange={(e) => setFilterParcelle(e.target.value)}>
-              <option value="">Toutes parcelles</option>
-              {parcelleOptions.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-            </select>
+          <div className="filter-bar rounded-2xl">
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground block mb-1.5">Niveau</label>
+              <select className="field-input py-1.5" value={filterNiveau} onChange={(e) => setFilterNiveau(e.target.value)}>
+                <option value="">Tous niveaux</option>
+                <option value="Critique">Critique</option>
+                <option value="Élevé">Élevé</option>
+                <option value="Moyen">Moyen</option>
+                <option value="Faible">Faible</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground block mb-1.5">Parcelle</label>
+              <select className="field-input py-1.5" value={filterParcelle} onChange={(e) => setFilterParcelle(e.target.value)}>
+                <option value="">Toutes parcelles</option>
+                {parcelleOptions.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+              </select>
+            </div>
           </div>
           <DataTable columns={histoColumns} rows={allStress} loading={loading} emptyMessage="Aucun enregistrement" onRowClick={(row) => nav(`/parcelles/${row.id_parcelle}`)} />
         </>
