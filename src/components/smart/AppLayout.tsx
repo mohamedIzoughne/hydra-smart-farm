@@ -21,8 +21,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
 
-  // Don't render layout on auth pages
-  if (["/login", "/signup"].includes(location.pathname)) {
+  // Don't render layout on auth/landing pages
+  if (["/", "/login", "/signup"].includes(location.pathname)) {
     return <>{children}<NotificationToast /></>;
   }
 
