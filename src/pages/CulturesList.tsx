@@ -5,9 +5,41 @@ import { DataTable, type Column } from "@/components/smart/DataTable";
 import { Modal } from "@/components/smart/Modal";
 import { FormField } from "@/components/smart/FormField";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Sprout } from "lucide-react";
+import { Plus, Search, Sprout, Droplets, AlertTriangle, Pencil, Trash2 } from "lucide-react";
 
 const emptyForm = { nom_culture: "", besoin_eau_base: "", seuil_stress_hyd: "", coeff_sol_sable: "1.30", coeff_sol_limon: "1.00", coeff_sol_argile: "0.75" };
+
+function WaterBar({ value, max = 12 }: { value: number; max?: number }) {
+  const pct = Math.min((value / max) * 100, 100);
+  const color = pct > 66 ? "bg-accent" : pct > 33 ? "bg-primary" : "bg-primary/60";
+  return (
+    <div className="flex items-center gap-2.5 min-w-[140px]">
+      <div className="flex-1 h-2 rounded-full bg-muted/60 overflow-hidden">
+        <div className={`h-full rounded-full ${color} transition-all duration-500`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="font-mono text-xs tabular-nums text-foreground/80 w-8 text-right">{value}</span>
+    </div>
+  );
+}
+
+function StressIndicator({ value }: { value: number }) {
+  const color = value >= 60 ? "text-destructive" : value >= 40 ? "text-secondary" : "text-primary";
+  return (
+    <div className="flex items-center gap-1.5">
+      <AlertTriangle className={`w-3.5 h-3.5 ${color}`} />
+      <span className={`font-mono text-sm tabular-nums font-semibold ${color}`}>{value}%</span>
+    </div>
+  );
+}
+
+function CoeffPill({ label, value }: { label: string; value: unknown }) {
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted/50 text-[11px] font-mono tabular-nums text-foreground/70">
+      <span className="text-muted-foreground font-sans text-[10px] uppercase tracking-wide">{label}</span>
+      {String(value ?? "—")}
+    </span>
+  );
+}
 
 export default function CulturesList() {
   const notify = useNotificationStore((s) => s.notify);
@@ -74,17 +106,45 @@ export default function CulturesList() {
   };
 
   const columns: Column[] = [
-    { key: "nom_culture", label: "Culture", sortable: true, render: (v) => <span className="font-semibold text-foreground">{String(v)}</span> },
-    { key: "besoin_eau_base", label: "Besoin eau (mm/j)", sortable: true },
-    { key: "seuil_stress_hyd", label: "Seuil stress (%)", sortable: true },
-    { key: "coeff_sol_sable", label: "Coeff Sable" },
-    { key: "coeff_sol_limon", label: "Coeff Limon" },
-    { key: "coeff_sol_argile", label: "Coeff Argile" },
     {
-      key: "actions", label: "Actions", render: (_, row) => (
-        <div className="table-actions" onClick={(e) => e.stopPropagation()}>
-          <Button variant="ghost" size="sm" className="font-semibold" onClick={() => openEdit(row)}>Modifier</Button>
-          <Button variant="ghost" size="sm" className="text-destructive font-semibold" onClick={() => handleDelete(row.id_culture as number)}>Supprimer</Button>
+      key: "nom_culture", label: "Culture", sortable: true,
+      render: (v) => (
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-primary/[0.08] flex items-center justify-center shrink-0">
+            <Sprout className="w-4 h-4 text-primary" />
+          </div>
+          <span className="font-semibold text-foreground">{String(v)}</span>
+        </div>
+      ),
+    },
+    {
+      key: "besoin_eau_base", label: "Besoin eau (mm/j)", sortable: true,
+      render: (v) => <WaterBar value={Number(v)} />,
+    },
+    {
+      key: "seuil_stress_hyd", label: "Seuil stress", sortable: true,
+      render: (v) => <StressIndicator value={Number(v)} />,
+    },
+    {
+      key: "coefficients", label: "Coefficients sol",
+      render: (_, row) => (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <CoeffPill label="S" value={row.coeff_sol_sable} />
+          <CoeffPill label="L" value={row.coeff_sol_limon} />
+          <CoeffPill label="A" value={row.coeff_sol_argile} />
+        </div>
+      ),
+    },
+    {
+      key: "actions", label: "",
+      render: (_, row) => (
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200" onClick={(e) => e.stopPropagation()}>
+          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg hover:bg-primary/10 hover:text-primary" onClick={() => openEdit(row)}>
+            <Pencil className="w-3.5 h-3.5" />
+          </Button>
+          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDelete(row.id_culture as number)}>
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
         </div>
       ),
     },
@@ -95,31 +155,38 @@ export default function CulturesList() {
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-xl bg-secondary/[0.08] flex items-center justify-center">
-            <Sprout className="w-5 h-5 text-secondary" />
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-secondary/20 to-primary/10 flex items-center justify-center shadow-sm">
+            <Sprout className="w-6 h-6 text-secondary" />
           </div>
           <div>
             <h1 className="page-title">Cultures</h1>
             <p className="text-sm text-muted-foreground">{rows.length} culture{rows.length !== 1 ? "s" : ""} référencée{rows.length !== 1 ? "s" : ""}</p>
           </div>
         </div>
-        <Button onClick={() => { setModalOpen(true); setEditItem(null); setForm(emptyForm); setFormError(""); }} className="rounded-full px-5 shadow-md shadow-primary/15">
+        <Button onClick={() => { setModalOpen(true); setEditItem(null); setForm(emptyForm); setFormError(""); }} className="rounded-full px-5 shadow-md shadow-primary/15 gap-2">
           <Plus className="w-4 h-4" /> Nouvelle culture
         </Button>
       </div>
 
-      <div className="filter-bar rounded-2xl">
+      <div className="flex flex-wrap items-end gap-3 p-4 rounded-2xl border border-border/40 bg-card/80 backdrop-blur-sm">
         <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
-          <input className="field-input pl-9 py-1.5" placeholder="Rechercher..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input className="field-input pl-9 py-1.5" placeholder="Rechercher une culture..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <div>
+        <div className="flex items-center gap-2">
+          <Droplets className="w-4 h-4 text-accent" />
           <input className="field-input w-40 py-1.5" type="number" placeholder="Besoin max (mm/j)" value={besoinMax} onChange={(e) => setBesoinMax(e.target.value)} />
         </div>
       </div>
 
-      <DataTable columns={columns} rows={filtered} loading={loading} />
+      <DataTable
+        columns={columns}
+        rows={filtered}
+        loading={loading}
+        emptyMessage="Aucune culture trouvée"
+        emptyIcon={<Sprout className="w-12 h-12 text-muted-foreground/15" strokeWidth={1.5} />}
+      />
 
       <Modal open={isFormOpen} onClose={() => { setModalOpen(false); setEditItem(null); }} title={editItem ? "Modifier culture" : "Nouvelle culture"} footer={
         <><Button variant="outline" onClick={() => { setModalOpen(false); setEditItem(null); }} className="rounded-xl">Annuler</Button><Button onClick={handleSave} className="rounded-xl">{editItem ? "Enregistrer" : "Créer"}</Button></>
