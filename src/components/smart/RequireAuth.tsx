@@ -25,7 +25,7 @@ export function RedirectIfAuth({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user);
 
   if (accessToken && user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;

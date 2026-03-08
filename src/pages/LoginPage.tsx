@@ -42,7 +42,7 @@ export default function LoginPage() {
 
     if (res.access_token && res.refresh_token && res.user) {
       login(res.user as AuthUser, res.access_token, res.refresh_token);
-      navigate("/", { replace: true });
+      navigate("/dashboard", { replace: true });
     }
   };
 
