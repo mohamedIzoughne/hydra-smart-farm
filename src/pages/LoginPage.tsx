@@ -22,7 +22,7 @@ export default function LoginPage() {
     // Demo credentials bypass
     if (mail === DEMO_EMAIL && password === DEMO_PASSWORD) {
       login(DEMO_USER, DEMO_TOKEN, DEMO_REFRESH);
-      navigate("/", { replace: true });
+      navigate("/dashboard", { replace: true });
       return;
     }
 
