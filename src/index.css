@@ -2,60 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,800;9..144,900&display=swap');
 
 @layer base {
   :root {
-    --background: 40 25% 96%;
-    --foreground: 160 30% 8%;
+    --background: 42 28% 96%;
+    --foreground: 155 35% 6%;
 
-    --card: 40 20% 99%;
-    --card-foreground: 160 30% 8%;
+    --card: 42 22% 99%;
+    --card-foreground: 155 35% 6%;
 
-    --popover: 40 20% 99%;
-    --popover-foreground: 160 30% 8%;
+    --popover: 42 22% 99%;
+    --popover-foreground: 155 35% 6%;
 
-    --primary: 152 55% 28%;
-    --primary-foreground: 40 20% 98%;
+    --primary: 152 62% 26%;
+    --primary-foreground: 42 22% 98%;
+    --primary-glow: 145 70% 38%;
 
-    --secondary: 32 75% 52%;
-    --secondary-foreground: 40 20% 98%;
+    --secondary: 30 82% 50%;
+    --secondary-foreground: 42 22% 98%;
 
-    --muted: 40 18% 91%;
-    --muted-foreground: 160 12% 44%;
+    --muted: 42 18% 90%;
+    --muted-foreground: 155 14% 42%;
 
-    --accent: 178 55% 30%;
-    --accent-foreground: 40 20% 98%;
+    --accent: 176 60% 28%;
+    --accent-foreground: 42 22% 98%;
 
-    --destructive: 4 68% 48%;
-    --destructive-foreground: 40 20% 98%;
+    --destructive: 2 72% 46%;
+    --destructive-foreground: 42 22% 98%;
 
-    --success: 152 55% 32%;
-    --success-foreground: 40 20% 98%;
+    --success: 152 58% 30%;
+    --success-foreground: 42 22% 98%;
 
-    --warning: 38 85% 52%;
-    --warning-foreground: 40 20% 98%;
+    --warning: 36 90% 50%;
+    --warning-foreground: 42 22% 98%;
 
-    --border: 40 16% 86%;
-    --input: 40 16% 86%;
-    --ring: 152 55% 28%;
+    --border: 42 16% 84%;
+    --input: 42 16% 84%;
+    --ring: 152 62% 26%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 160 35% 10%;
+    --sidebar-background: 155 40% 8%;
     --sidebar-foreground: 150 12% 75%;
-    --sidebar-primary: 152 60% 55%;
-    --sidebar-primary-foreground: 40 20% 98%;
-    --sidebar-accent: 160 25% 16%;
+    --sidebar-primary: 148 65% 50%;
+    --sidebar-primary-foreground: 42 22% 98%;
+    --sidebar-accent: 155 28% 14%;
     --sidebar-accent-foreground: 150 12% 88%;
-    --sidebar-border: 160 18% 18%;
-    --sidebar-ring: 152 60% 55%;
-    --sidebar-muted: 160 12% 34%;
+    --sidebar-border: 155 20% 16%;
+    --sidebar-ring: 148 65% 50%;
+    --sidebar-muted: 155 12% 34%;
 
-    --chart-green: 152 55% 42%;
-    --chart-amber: 32 75% 52%;
-    --chart-teal: 178 55% 38%;
-    --chart-red: 4 68% 48%;
+    --chart-green: 152 58% 40%;
+    --chart-amber: 30 82% 50%;
+    --chart-teal: 176 60% 36%;
+    --chart-red: 2 72% 46%;
+
+    /* Bold landing-specific tokens */
+    --hero-gradient: linear-gradient(160deg, hsl(152 62% 26%), hsl(176 60% 28%));
+    --glow-primary: 0 0 80px 20px hsl(152 62% 26% / 0.12);
+    --glow-accent: 0 0 60px 15px hsl(176 60% 28% / 0.08);
   }
 }
 
@@ -73,7 +79,6 @@
     font-optical-sizing: auto;
   }
 
-  /* Smooth focus rings everywhere */
   *:focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
     transition: box-shadow 0.15s ease-out;
@@ -99,12 +104,12 @@
 
   /* ── Stat cards ── */
   .stat-card {
-    @apply rounded-lg border p-5 bg-card transition-all duration-200;
+    @apply rounded-xl border p-6 bg-card transition-all duration-300;
     box-shadow: 0 1px 3px 0 hsl(var(--foreground) / 0.04);
   }
   .stat-card:hover {
-    box-shadow: 0 4px 16px -4px hsl(var(--foreground) / 0.08);
-    transform: translateY(-2px);
+    box-shadow: 0 8px 30px -8px hsl(var(--primary) / 0.12), 0 2px 8px -2px hsl(var(--foreground) / 0.06);
+    transform: translateY(-3px);
   }
 
   /* ── Page chrome ── */
@@ -145,11 +150,64 @@
   /* ── Smooth page transitions ── */
   @media (prefers-reduced-motion: no-preference) {
     .animate-enter {
-      animation: page-enter 0.25s ease-out both;
+      animation: page-enter 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
     }
   }
   @keyframes page-enter {
-    from { opacity: 0; transform: translateY(6px); }
+    from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Bold staggered entrance ── */
+  @media (prefers-reduced-motion: no-preference) {
+    .stagger-in > * {
+      opacity: 0;
+      animation: stagger-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    .stagger-in > *:nth-child(1) { animation-delay: 0ms; }
+    .stagger-in > *:nth-child(2) { animation-delay: 80ms; }
+    .stagger-in > *:nth-child(3) { animation-delay: 160ms; }
+    .stagger-in > *:nth-child(4) { animation-delay: 240ms; }
+    .stagger-in > *:nth-child(5) { animation-delay: 320ms; }
+    .stagger-in > *:nth-child(6) { animation-delay: 400ms; }
+  }
+  @keyframes stagger-up {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Feature card bold ── */
+  .feature-card {
+    @apply relative rounded-2xl border bg-card p-7 transition-all duration-300 overflow-hidden;
+    box-shadow: 0 1px 4px 0 hsl(var(--foreground) / 0.03);
+  }
+  .feature-card::before {
+    content: '';
+    @apply absolute top-0 left-0 w-full h-1 transition-all duration-300;
+    background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--accent)));
+    opacity: 0;
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  .feature-card:hover::before {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  .feature-card:hover {
+    box-shadow: 0 12px 40px -12px hsl(var(--primary) / 0.15), 0 4px 12px -4px hsl(var(--foreground) / 0.06);
+    transform: translateY(-4px);
+  }
+
+  /* ── Decorative blob ── */
+  .blob {
+    @apply absolute rounded-full blur-3xl pointer-events-none;
+    will-change: transform;
+  }
+
+  /* ── Noise texture overlay ── */
+  .noise-overlay::after {
+    content: '';
+    @apply absolute inset-0 pointer-events-none opacity-[0.025];
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
   }
 }
