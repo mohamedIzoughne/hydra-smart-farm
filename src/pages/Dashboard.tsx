@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { parcelles as parcellesApi, stress as stressApi, cultures as culturesApi } from "@/lib/api";
 import { StatCard } from "@/components/smart/StatCard";
 import { Badge, stressBadgeType } from "@/components/smart/Badge";
@@ -39,7 +39,9 @@ export default function Dashboard() {
       <div className="space-y-6">
         <div className="h-8 w-48 bg-muted rounded animate-pulse" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1,2,3,4].map(i => <div key={i} className="h-24 bg-muted rounded-lg animate-pulse" />)}
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-[104px] bg-muted rounded-lg animate-pulse" />
+          ))}
         </div>
         <div className="h-64 bg-muted rounded-lg animate-pulse" />
       </div>
@@ -53,6 +55,7 @@ export default function Dashboard() {
         <p className="text-sm text-muted-foreground mt-1">Vue d'ensemble de votre exploitation</p>
       </div>
 
+      {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Parcelles" value={allParcelles.length} icon={<Map className="w-5 h-5" />} color="primary" />
         <StatCard label="Saisons actives" value={activeParcelles.length} icon={<Activity className="w-5 h-5" />} color="accent" />
@@ -64,7 +67,7 @@ export default function Dashboard() {
       {alertes.length > 0 && (
         <section>
           <div className="flex items-center justify-between mb-3">
-            <p className="section-label">Alertes actives</p>
+            <p className="section-label !mb-0">Alertes actives</p>
             <Button variant="ghost" size="sm" className="text-xs" onClick={() => nav("/alertes")}>
               Tout voir <ArrowRight className="w-3 h-3 ml-1" />
             </Button>
@@ -73,16 +76,21 @@ export default function Dashboard() {
             {alertes.slice(0, 3).map((a, i) => (
               <div
                 key={i}
-                className="bg-card border rounded-lg p-4 cursor-pointer hover:shadow-sm transition-shadow"
+                className="bg-card border border-border/80 rounded-xl p-4 cursor-pointer hover:shadow-sm transition-all duration-200 hover:-translate-y-0.5"
                 onClick={() => nav(`/parcelles/${a.id_parcelle}`)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === "Enter" && nav(`/parcelles/${a.id_parcelle}`)}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-semibold font-heading">Parcelle #{String(a.id_parcelle)}</span>
+                  <span className="text-sm font-semibold font-heading text-foreground">
+                    Parcelle #{String(a.id_parcelle)}
+                  </span>
                   <Badge value={String(a.niveau_stress)} type={stressBadgeType(String(a.niveau_stress))} />
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Droplets className="w-3 h-3" />
-                  <span>Déficit: {Number(a.deficit_calcule || 0).toLocaleString("fr-FR")} L</span>
+                  <Droplets className="w-3 h-3 shrink-0" />
+                  <span>Déficit : {Number(a.deficit_calcule || 0).toLocaleString("fr-FR")} L</span>
                 </div>
                 {a.cultures_suggere && (
                   <p className="text-xs text-muted-foreground mt-1.5 truncate">→ {String(a.cultures_suggere)}</p>
@@ -96,16 +104,16 @@ export default function Dashboard() {
       {/* Active parcelles */}
       <section>
         <div className="flex items-center justify-between mb-3">
-          <p className="section-label">Parcelles en saison</p>
+          <p className="section-label !mb-0">Parcelles en saison</p>
           <Button variant="ghost" size="sm" className="text-xs" onClick={() => nav("/parcelles")}>
             Tout voir <ArrowRight className="w-3 h-3 ml-1" />
           </Button>
         </div>
         {activeParcelles.length === 0 ? (
-          <div className="bg-card border rounded-lg p-8 text-center">
-            <Map className="w-8 h-8 mx-auto mb-2 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">Aucune parcelle en saison active</p>
-            <Button variant="outline" size="sm" className="mt-3" onClick={() => nav("/parcelles")}>
+          <div className="bg-card border border-border/80 rounded-xl p-10 text-center">
+            <Map className="w-8 h-8 mx-auto mb-3 text-muted-foreground/30" />
+            <p className="text-sm text-muted-foreground mb-3">Aucune parcelle en saison active</p>
+            <Button variant="outline" size="sm" onClick={() => nav("/parcelles")}>
               Gérer les parcelles
             </Button>
           </div>
@@ -116,11 +124,16 @@ export default function Dashboard() {
               return (
                 <div
                   key={i}
-                  className="bg-card border rounded-lg p-4 cursor-pointer hover:shadow-sm transition-shadow"
+                  className="bg-card border border-border/80 rounded-xl p-4 cursor-pointer hover:shadow-sm transition-all duration-200 hover:-translate-y-0.5"
                   onClick={() => nav(`/parcelles/${p.id_parcelle}`)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === "Enter" && nav(`/parcelles/${p.id_parcelle}`)}
                 >
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-sm font-semibold font-heading">Parcelle #{String(p.id_parcelle)}</span>
+                    <span className="text-sm font-semibold font-heading text-foreground">
+                      Parcelle #{String(p.id_parcelle)}
+                    </span>
                     <Badge value="Active" type="success" />
                   </div>
                   <div className="text-xs text-muted-foreground space-y-0.5">
