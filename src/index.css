@@ -72,13 +72,20 @@
     font-family: 'Fraunces', 'Georgia', serif;
     font-optical-sizing: auto;
   }
+
+  /* Smooth focus rings everywhere */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+    transition: box-shadow 0.15s ease-out;
+  }
 }
 
 @layer components {
+  /* ── Sidebar ── */
   .sidebar-link {
-    @apply flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium tracking-wide uppercase transition-all duration-150;
+    @apply flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium tracking-wide transition-all duration-200;
     color: hsl(var(--sidebar-foreground));
-    letter-spacing: 0.04em;
+    letter-spacing: 0.02em;
   }
   .sidebar-link:hover {
     background: hsl(var(--sidebar-accent));
@@ -89,14 +96,18 @@
     color: hsl(var(--sidebar-primary));
     font-weight: 600;
   }
+
+  /* ── Stat cards ── */
   .stat-card {
     @apply rounded-lg border p-5 bg-card transition-all duration-200;
     box-shadow: 0 1px 3px 0 hsl(var(--foreground) / 0.04);
   }
   .stat-card:hover {
-    box-shadow: 0 4px 12px -2px hsl(var(--foreground) / 0.08);
-    transform: translateY(-1px);
+    box-shadow: 0 4px 16px -4px hsl(var(--foreground) / 0.08);
+    transform: translateY(-2px);
   }
+
+  /* ── Page chrome ── */
   .page-header {
     @apply flex items-center justify-between mb-5;
   }
@@ -104,14 +115,41 @@
     @apply text-2xl font-bold tracking-tight;
     font-family: 'Fraunces', 'Georgia', serif;
   }
+  .section-label {
+    @apply text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3;
+    letter-spacing: 0.1em;
+  }
+
+  /* ── Utilities ── */
   .filter-bar {
     @apply flex flex-wrap items-end gap-3 mb-4 p-3 rounded-lg border bg-card;
   }
   .table-actions {
     @apply flex items-center gap-1;
   }
-  .section-label {
-    @apply text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3;
-    letter-spacing: 0.1em;
+
+  /* ── Shared input style ── */
+  .field-input {
+    @apply w-full border rounded-md px-3 py-2 text-sm bg-background transition-colors duration-150;
+  }
+  .field-input:focus {
+    @apply outline-none ring-2 ring-ring ring-offset-1 ring-offset-background;
+  }
+  .field-input::placeholder {
+    @apply text-muted-foreground/60;
+  }
+  .field-input.field-error {
+    @apply border-destructive;
+  }
+
+  /* ── Smooth page transitions ── */
+  @media (prefers-reduced-motion: no-preference) {
+    .animate-enter {
+      animation: page-enter 0.25s ease-out both;
+    }
+  }
+  @keyframes page-enter {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 }
