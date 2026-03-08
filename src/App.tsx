@@ -5,8 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "@/components/smart/AppLayout";
 import Dashboard from "./pages/Dashboard";
-import AgriculteursList from "./pages/AgriculteursList";
-import AgriculteurDetail from "./pages/AgriculteurDetail";
 import CulturesList from "./pages/CulturesList";
 import ParcellesList from "./pages/ParcellesList";
 import ParcelleDetail from "./pages/ParcelleDetail";
@@ -25,8 +23,6 @@ const App = () => (
         <AppLayout>
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/agriculteurs" element={<AgriculteursList />} />
-            <Route path="/agriculteurs/:id" element={<AgriculteurDetail />} />
             <Route path="/cultures" element={<CulturesList />} />
             <Route path="/parcelles" element={<ParcellesList />} />
             <Route path="/parcelles/:id" element={<ParcelleDetail />} />

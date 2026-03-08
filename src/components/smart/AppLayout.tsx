@@ -2,12 +2,11 @@ import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { NotificationToast } from "@/components/smart/NotificationToast";
 import {
-  LayoutDashboard, Users, Map, Sprout, CloudRain, AlertTriangle, Menu, X, Leaf,
+  LayoutDashboard, Map, Sprout, CloudRain, AlertTriangle, Menu, Leaf, User,
 } from "lucide-react";
 
 const navItems = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/agriculteurs", label: "Agriculteurs", icon: Users },
+  { to: "/", label: "Tableau de bord", icon: LayoutDashboard },
   { to: "/parcelles", label: "Parcelles", icon: Map },
   { to: "/cultures", label: "Cultures", icon: Sprout },
   { to: "/mesures", label: "Mesures", icon: CloudRain },
@@ -19,14 +18,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
 
   const sidebar = (
-    <aside className="flex flex-col w-60 h-full bg-sidebar border-r border-sidebar-border">
-      <div className="flex items-center gap-2.5 px-5 py-5 border-b border-sidebar-border">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-sidebar-primary/20">
-          <Leaf className="w-5 h-5 text-sidebar-primary" />
+    <aside className="flex flex-col w-56 h-full bg-sidebar">
+      <div className="flex items-center gap-2.5 px-4 py-5">
+        <div className="flex items-center justify-center w-7 h-7 rounded-md bg-sidebar-primary/20">
+          <Leaf className="w-4 h-4 text-sidebar-primary" />
         </div>
-        <span className="text-base font-bold text-sidebar-accent-foreground font-heading">SmartAgri-Predict</span>
+        <span className="text-sm font-bold text-sidebar-accent-foreground font-heading tracking-tight">SmartAgri</span>
       </div>
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-2 space-y-0.5">
         {navItems.map((item) => {
           const active = location.pathname === item.to || (item.to !== "/" && location.pathname.startsWith(item.to));
           return (
@@ -36,43 +35,45 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               className={`sidebar-link ${active ? "active" : ""}`}
               onClick={() => setSidebarOpen(false)}
             >
-              <item.icon className="w-4.5 h-4.5" />
+              <item.icon className="w-4 h-4" />
               {item.label}
             </Link>
           );
         })}
       </nav>
-      <div className="px-5 py-4 border-t border-sidebar-border">
-        <p className="text-xs text-sidebar-muted">SmartAgri v1.0</p>
+      <div className="px-4 py-3 border-t border-sidebar-border">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full bg-sidebar-accent flex items-center justify-center">
+            <User className="w-3.5 h-3.5 text-sidebar-foreground" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-sidebar-accent-foreground truncate">Mon exploitation</p>
+            <p className="text-[10px] text-sidebar-muted">v1.0</p>
+          </div>
+        </div>
       </div>
     </aside>
   );
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* Desktop sidebar */}
       <div className="hidden md:flex">{sidebar}</div>
 
-      {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
-          <div className="absolute inset-0 bg-foreground/40" onClick={() => setSidebarOpen(false)} />
-          <div className="relative h-full w-60">{sidebar}</div>
+          <div className="absolute inset-0 bg-foreground/30" onClick={() => setSidebarOpen(false)} />
+          <div className="relative h-full w-56">{sidebar}</div>
         </div>
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top bar */}
-        <header className="flex items-center h-14 px-4 border-b bg-card shrink-0">
+        <header className="flex items-center h-12 px-4 border-b bg-card shrink-0">
           <button className="md:hidden mr-3 text-muted-foreground" onClick={() => setSidebarOpen(true)}>
             <Menu className="w-5 h-5" />
           </button>
-          <h2 className="text-sm font-medium text-muted-foreground">
-            Gestion agricole intelligente
-          </h2>
+          <div className="flex-1" />
         </header>
 
-        {/* Main content */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
       </div>
 
