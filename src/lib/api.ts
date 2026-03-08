@@ -1,4 +1,4 @@
-const BASE_URL = "http://localhost:5000/api";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 export interface ApiResponse<T = unknown> {
   data?: T;
@@ -10,6 +10,7 @@ export interface ApiResponse<T = unknown> {
   pages?: number;
   simulation?: unknown;
   besoin_genere?: unknown;
+  fieldErrors?: Record<string, string>;
 }
 
 async function apiFetch<T = unknown>(
@@ -22,13 +23,16 @@ async function apiFetch<T = unknown>(
       headers: { "Content-Type": "application/json", ...options.headers },
       ...options,
     });
-    const json = await res.json();
+    const json = await res.json().catch(() => ({}));
     if (!res.ok) {
+      if (res.status === 422 && json.errors) {
+        return { error: json.error || "Erreur de validation", fieldErrors: json.errors };
+      }
       return { error: json.error || `Erreur ${res.status}`, detail: json.detail };
     }
     return json;
-  } catch (err) {
-    return { error: "Erreur réseau. Le serveur est-il accessible ?" };
+  } catch {
+    return { error: "Impossible de joindre le serveur. Vérifiez que le backend Flask tourne sur le port 5000." };
   }
 }
 
@@ -39,7 +43,6 @@ function qs(params?: Record<string, string | number | boolean | undefined>): str
   return "?" + new URLSearchParams(entries.map(([k, v]) => [k, String(v)])).toString();
 }
 
-// ── Agriculteurs ──
 export const agriculteurs = {
   getAll: (params?: Record<string, string>) => apiFetch(`/agriculteurs${qs(params)}`),
   getById: (id: number) => apiFetch(`/agriculteurs/${id}`),
@@ -48,7 +51,6 @@ export const agriculteurs = {
   deactivate: (id: number) => apiFetch(`/agriculteurs/${id}`, { method: "DELETE" }),
 };
 
-// ── Cultures ──
 export const cultures = {
   getAll: (params?: Record<string, string>) => apiFetch(`/cultures${qs(params)}`),
   getById: (id: number) => apiFetch(`/cultures/${id}`),
@@ -57,7 +59,6 @@ export const cultures = {
   delete: (id: number) => apiFetch(`/cultures/${id}`, { method: "DELETE" }),
 };
 
-// ── Parcelles ──
 export const parcelles = {
   getAll: (params?: Record<string, string>) => apiFetch(`/parcelles${qs(params)}`),
   getById: (id: number) => apiFetch(`/parcelles/${id}`),
@@ -72,15 +73,14 @@ export const parcelles = {
   historiqueStress: (id: number) => apiFetch(`/parcelles/${id}/historique-stress`),
 };
 
-// ── Mesures ──
 export const mesures = {
   getAll: (params: Record<string, string>) => apiFetch(`/mesures${qs(params)}`),
+  getById: (id: number) => apiFetch(`/mesures/${id}`),
   create: (data: Record<string, unknown>) => apiFetch("/mesures", { method: "POST", body: JSON.stringify(data) }),
   update: (id: number, data: Record<string, unknown>) => apiFetch(`/mesures/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   delete: (id: number) => apiFetch(`/mesures/${id}`, { method: "DELETE" }),
 };
 
-// ── Besoins ──
 export const besoins = {
   getAll: (params?: Record<string, string>) => apiFetch(`/besoins${qs(params)}`),
   appliquer: (id: number, volume: number) =>
@@ -88,9 +88,9 @@ export const besoins = {
   delete: (id: number) => apiFetch(`/besoins/${id}`, { method: "DELETE" }),
 };
 
-// ── Stress ──
 export const stress = {
   getAll: (params?: Record<string, string>) => apiFetch(`/stress${qs(params)}`),
+  getById: (id: number) => apiFetch(`/stress/${id}`),
   simuler: (parcelleId: number) => apiFetch(`/stress/calculer/${parcelleId}`, { method: "POST" }),
   delete: (id: number) => apiFetch(`/stress/${id}`, { method: "DELETE" }),
 };
