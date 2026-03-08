@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { auth, parcelles as parcellesApi } from "@/lib/api";
+import React, { useState } from "react";
+import { useProfile, useUpdateProfile, useChangePassword, useParcelles } from "@/hooks/useApi";
 import { useAuthStore, useNotificationStore, type AuthUser } from "@/lib/stores";
 import { Button } from "@/components/ui/button";
 import { Loader2, Pencil, X, User, Shield, Map } from "lucide-react";
@@ -9,46 +9,36 @@ export default function ProfilePage() {
   const setUser = useAuthStore((s) => s.setUser);
   const storeUser = useAuthStore((s) => s.user);
 
-  const [user, setLocalUser] = useState<AuthUser | null>(null);
-  const [parcelleCount, setParcelleCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const { data: profileData, isLoading: loading } = useProfile();
+  const { data: parcellesData } = useParcelles();
+  const updateProfileMutation = useUpdateProfile();
+  const changePasswordMutation = useChangePassword();
+
+  const user = profileData as unknown as AuthUser | undefined;
+  const parcelleCount = parcellesData?.data?.length ?? 0;
 
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ nom: "", mail: "" });
   const [editError, setEditError] = useState("");
-  const [editLoading, setEditLoading] = useState(false);
 
   const [pwForm, setPwForm] = useState({ ancien_mot_de_passe: "", nouveau_mot_de_passe: "", confirmation: "" });
   const [pwError, setPwError] = useState("");
-  const [pwLoading, setPwLoading] = useState(false);
 
-  const fetchProfile = async () => {
-    setLoading(true);
-    const [meRes, pRes] = await Promise.all([auth.me(), parcellesApi.getAll()]);
-    if (meRes.data) {
-      const u = meRes.data as AuthUser;
-      setLocalUser(u);
-      setEditForm({ nom: u.nom, mail: u.mail });
-    }
-    if (pRes.data) setParcelleCount((pRes.data as unknown[]).length);
-    setLoading(false);
+  // Sync edit form when profile loads
+  const initEditForm = () => {
+    const u = user || storeUser;
+    if (u) setEditForm({ nom: u.nom, mail: u.mail });
   };
-
-  useEffect(() => { fetchProfile(); }, []);
 
   const handleUpdateProfile = async () => {
     setEditError("");
-    setEditLoading(true);
-    const res = await auth.updateProfile(editForm);
-    setEditLoading(false);
-    if (res.error) { setEditError(res.error); return; }
-    if (res.data) {
-      const u = res.data as AuthUser;
-      setLocalUser(u);
+    try {
+      const result = await updateProfileMutation.mutateAsync(editForm);
+      const u = result as unknown as AuthUser;
       setUser(u);
-    }
-    notify("success", "Profil mis à jour");
-    setEditing(false);
+      notify("success", "Profil mis à jour");
+      setEditing(false);
+    } catch (e: any) { setEditError(e.message); }
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -66,12 +56,11 @@ export default function ProfilePage() {
       setPwError("Les mots de passe ne correspondent pas");
       return;
     }
-    setPwLoading(true);
-    const res = await auth.changePassword(pwForm);
-    setPwLoading(false);
-    if (res.error) { setPwError(res.error); return; }
-    notify("success", "Mot de passe modifié");
-    setPwForm({ ancien_mot_de_passe: "", nouveau_mot_de_passe: "", confirmation: "" });
+    try {
+      await changePasswordMutation.mutateAsync(pwForm);
+      notify("success", "Mot de passe modifié");
+      setPwForm({ ancien_mot_de_passe: "", nouveau_mot_de_passe: "", confirmation: "" });
+    } catch (e: any) { setPwError(e.message); }
   };
 
   if (loading) {
@@ -103,7 +92,7 @@ export default function ProfilePage() {
         <div className="flex items-center justify-between mb-5">
           <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Mes informations</p>
           {!editing && (
-            <Button variant="ghost" size="sm" className="rounded-xl font-semibold" onClick={() => setEditing(true)}>
+            <Button variant="ghost" size="sm" className="rounded-xl font-semibold" onClick={() => { initEditForm(); setEditing(true); }}>
               <Pencil className="w-3.5 h-3.5" /> Modifier
             </Button>
           )}
@@ -125,8 +114,8 @@ export default function ProfilePage() {
               <input id="edit-mail" type="email" className="field-input" value={editForm.mail} onChange={(e) => setEditForm({ ...editForm, mail: e.target.value })} />
             </div>
             <div className="flex gap-2 pt-1">
-              <Button size="sm" className="rounded-xl" onClick={handleUpdateProfile} disabled={editLoading}>
-                {editLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <Button size="sm" className="rounded-xl" onClick={handleUpdateProfile} disabled={updateProfileMutation.isPending}>
+                {updateProfileMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 Enregistrer
               </Button>
               <Button variant="ghost" size="sm" className="rounded-xl" onClick={() => { setEditing(false); setEditError(""); }}>
@@ -178,8 +167,8 @@ export default function ProfilePage() {
             </div>
           </div>
           <div className="pt-1">
-            <Button type="submit" size="sm" className="rounded-xl" disabled={pwLoading}>
-              {pwLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            <Button type="submit" size="sm" className="rounded-xl" disabled={changePasswordMutation.isPending}>
+              {changePasswordMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               Modifier le mot de passe
             </Button>
           </div>

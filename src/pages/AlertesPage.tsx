@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { stress as api, parcelles as parcellesApi } from "@/lib/api";
+import React, { useState, useMemo } from "react";
+import { useStressList, useParcelles, useDeleteStress } from "@/hooks/useApi";
 import { useNotificationStore } from "@/lib/stores";
 import { DataTable, type Column } from "@/components/smart/DataTable";
 import { Badge, stressBadgeType } from "@/components/smart/Badge";
@@ -22,51 +22,39 @@ export default function AlertesPage() {
   const nav = useNavigate();
   const notify = useNotificationStore((s) => s.notify);
   const [tab, setTab] = useState<"alertes" | "historique">("alertes");
-  const [alertes, setAlertes] = useState<Record<string, unknown>[]>([]);
-  const [allStress, setAllStress] = useState<Record<string, unknown>[]>([]);
-  const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<number | null>(null);
-
   const [filterNiveau, setFilterNiveau] = useState("");
   const [filterParcelle, setFilterParcelle] = useState("");
-  const [parcelleOptions, setParcelleOptions] = useState<{ id: number; label: string }[]>([]);
 
-  useEffect(() => {
-    (async () => {
-      const res = await parcellesApi.getAll();
-      if (res.data) {
-        setParcelleOptions((res.data as Record<string, unknown>[]).map((p) => ({
-          id: p.id_parcelle as number,
-          label: `Parcelle #${p.id_parcelle}`,
-        })));
-      }
-    })();
-  }, []);
+  const { data: parcellesData } = useParcelles();
+  const parcelleOptions = useMemo(() =>
+    (parcellesData?.data ?? []).map((p) => ({ id: p.id_parcelle as number, label: `Parcelle #${p.id_parcelle}` })),
+    [parcellesData]
+  );
 
-  const fetchData = async () => {
-    setLoading(true);
-    const [aRes, hRes] = await Promise.all([
-      api.getAll({ alerte_active: "true" }),
-      api.getAll((() => {
-        const p: Record<string, string> = {};
-        if (filterNiveau) p.niveau = filterNiveau;
-        if (filterParcelle) p.parcelle_id = filterParcelle;
-        return p;
-      })()),
-    ]);
-    if (aRes.data) setAlertes(aRes.data as Record<string, unknown>[]);
-    if (hRes.data) setAllStress(hRes.data as Record<string, unknown>[]);
-    setLoading(false);
-  };
+  const alerteParams = useMemo(() => ({ alerte_active: "true" }), []);
+  const histoParams = useMemo(() => {
+    const p: Record<string, string> = {};
+    if (filterNiveau) p.niveau = filterNiveau;
+    if (filterParcelle) p.parcelle_id = filterParcelle;
+    return p;
+  }, [filterNiveau, filterParcelle]);
 
-  useEffect(() => { fetchData(); }, [filterNiveau, filterParcelle]);
+  const { data: alertesData, isLoading: aLoading } = useStressList(alerteParams);
+  const { data: histoData, isLoading: hLoading } = useStressList(histoParams);
+  const deleteMutation = useDeleteStress();
+
+  const alertes = alertesData?.data ?? [];
+  const allStress = histoData?.data ?? [];
+  const loading = tab === "alertes" ? aLoading : hLoading;
 
   const handleDelete = async () => {
     if (deleteId === null) return;
-    const res = await api.delete(deleteId);
-    if (res.error) { notify("error", res.error); } else { notify("success", "Enregistrement supprimé"); }
+    try {
+      await deleteMutation.mutateAsync(deleteId);
+      notify("success", "Enregistrement supprimé");
+    } catch (e: any) { notify("error", e.message); }
     setDeleteId(null);
-    fetchData();
   };
 
   const niveauColor = (n: string) => {

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { mesures as api, parcelles as parcellesApi } from "@/lib/api";
+import React, { useState, useMemo } from "react";
+import { useParcelles, useMesures, useCreateMesure, useUpdateMesure, useDeleteMesure } from "@/hooks/useApi";
 import { useNotificationStore } from "@/lib/stores";
 import { DataTable, type Column } from "@/components/smart/DataTable";
 import { Modal } from "@/components/smart/Modal";
@@ -10,9 +10,6 @@ import { Plus, Pencil, Trash2, Info, CloudRain } from "lucide-react";
 
 export default function MesuresPage() {
   const notify = useNotificationStore((s) => s.notify);
-  const [rows, setRows] = useState<Record<string, unknown>[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [parcelleOptions, setParcelleOptions] = useState<{ id: number; label: string }[]>([]);
   const [parcelleId, setParcelleId] = useState("");
   const [depuis, setDepuis] = useState("");
   const [jusqu, setJusqu] = useState("");
@@ -28,33 +25,33 @@ export default function MesuresPage() {
 
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      const res = await parcellesApi.getAll({ include_culture: "true" });
-      if (res.data) {
-        const opts = (res.data as Record<string, unknown>[]).map((p) => ({
-          id: p.id_parcelle as number,
-          label: `#${p.id_parcelle} — ${(p.culture as Record<string, unknown> | null)?.nom_culture || "Sans culture"} (${p.type_de_sol})`,
-        }));
-        setParcelleOptions(opts);
-        if (opts.length && !parcelleId) setParcelleId(String(opts[0].id));
-      }
-    })();
-  }, []);
+  const { data: parcellesData } = useParcelles({ include_culture: "true" });
+  const parcelleOptions = useMemo(() => {
+    const opts = (parcellesData?.data ?? []).map((p) => ({
+      id: p.id_parcelle as number,
+      label: `#${p.id_parcelle} — ${(p.culture as Record<string, unknown> | null)?.nom_culture || "Sans culture"} (${p.type_de_sol})`,
+    }));
+    // Auto-select first parcelle
+    if (opts.length && !parcelleId) {
+      setTimeout(() => setParcelleId(String(opts[0].id)), 0);
+    }
+    return opts;
+  }, [parcellesData]);
 
-  const fetchData = async () => {
-    if (!parcelleId) { setRows([]); setLoading(false); return; }
-    setLoading(true);
-    const params: Record<string, string> = { parcelle_id: parcelleId };
-    if (depuis) params.depuis = depuis;
-    if (jusqu) params.jusqu = jusqu;
-    const res = await api.getAll(params);
-    if (res.data) setRows(res.data as Record<string, unknown>[]);
-    else if (res.error) notify("error", res.error);
-    setLoading(false);
-  };
+  const mesureParams = useMemo(() => {
+    const p: Record<string, string> = {};
+    if (parcelleId) p.parcelle_id = parcelleId;
+    if (depuis) p.depuis = depuis;
+    if (jusqu) p.jusqu = jusqu;
+    return p;
+  }, [parcelleId, depuis, jusqu]);
 
-  useEffect(() => { fetchData(); }, [parcelleId, depuis, jusqu]);
+  const { data: mesuresData, isLoading: loading } = useMesures(mesureParams);
+  const rows = mesuresData?.data ?? [];
+
+  const createMutation = useCreateMesure();
+  const updateMutation = useUpdateMesure();
+  const deleteMutation = useDeleteMesure();
 
   const handleCreate = async () => {
     setCreateError("");
@@ -66,12 +63,12 @@ export default function MesuresPage() {
       source_api: createForm.source_api || "OpenMeteo",
     };
     if (createForm.humidite) payload.humidite = parseFloat(createForm.humidite);
-    const res = await api.create(payload);
-    if (res.error) { setCreateError(res.error); return; }
-    notify("success", "Mesure ajoutée" + (res.besoin_genere ? " — besoin J+1 calculé" : ""));
-    setCreateOpen(false);
-    setCreateForm({ date_prevision: "", temperature: "", pluie: "", humidite: "", source_api: "OpenMeteo" });
-    fetchData();
+    try {
+      const res = await createMutation.mutateAsync(payload);
+      notify("success", "Mesure ajoutée" + (res.besoin_genere ? " — besoin J+1 calculé" : ""));
+      setCreateOpen(false);
+      setCreateForm({ date_prevision: "", temperature: "", pluie: "", humidite: "", source_api: "OpenMeteo" });
+    } catch (e: any) { setCreateError(e.message); }
   };
 
   const handleEdit = async () => {
@@ -82,28 +79,25 @@ export default function MesuresPage() {
     if (editForm.pluie) payload.pluie = parseFloat(editForm.pluie);
     if (editForm.humidite !== "") payload.humidite = editForm.humidite ? parseFloat(editForm.humidite) : null;
     if (editForm.source_api) payload.source_api = editForm.source_api;
-    const res = await api.update(editItem.id_mesure as number, payload);
-    if (res.error) { setEditError(res.error); return; }
-    setRecalcBanner(true);
-    setTimeout(() => setRecalcBanner(false), 5000);
-    notify("success", "Mesure mise à jour");
-    setEditItem(null);
-    fetchData();
+    try {
+      await updateMutation.mutateAsync({ id: editItem.id_mesure as number, data: payload });
+      setRecalcBanner(true);
+      setTimeout(() => setRecalcBanner(false), 5000);
+      notify("success", "Mesure mise à jour");
+      setEditItem(null);
+    } catch (e: any) { setEditError(e.message); }
   };
 
   const handleDelete = async () => {
     if (deleteId === null) return;
-    const res = await api.delete(deleteId);
-    if (res.error) {
-      notify("error", res.error.includes("409") || res.error.includes("besoin") || res.error.includes("lié")
-        ? "Ce relevé est lié à un besoin en eau — supprimez d'abord le besoin"
-        : res.error);
+    try {
+      await deleteMutation.mutateAsync(deleteId);
+      notify("success", "Mesure supprimée");
       setDeleteId(null);
-      return;
+    } catch (e: any) {
+      notify("error", e.message.includes("besoin") ? "Ce relevé est lié à un besoin en eau — supprimez d'abord le besoin" : e.message);
+      setDeleteId(null);
     }
-    notify("success", "Mesure supprimée");
-    setDeleteId(null);
-    fetchData();
   };
 
   const columns: Column[] = [

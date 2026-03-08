@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
-import { parcelles as parcellesApi, stress as stressApi, cultures as culturesApi } from "@/lib/api";
+import { useMemo } from "react";
+import { useParcelles, useStressList, useCultures } from "@/hooks/useApi";
 import { useAuthStore } from "@/lib/stores";
 import { StatCard } from "@/components/smart/StatCard";
 import { Badge, stressBadgeType } from "@/components/smart/Badge";
@@ -10,31 +10,16 @@ import { Button } from "@/components/ui/button";
 export default function Dashboard() {
   const nav = useNavigate();
   const user = useAuthStore((s) => s.user);
-  const [loading, setLoading] = useState(true);
-  const [allParcelles, setAllParcelles] = useState<Record<string, unknown>[]>([]);
-  const [alertes, setAlertes] = useState<Record<string, unknown>[]>([]);
-  const [culturesCount, setCulturesCount] = useState(0);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    const [pRes, sRes, cRes] = await Promise.all([
-      parcellesApi.getAll({ include_culture: "true" }),
-      stressApi.getAll({ alerte_active: "true" }),
-      culturesApi.getAll(),
-    ]);
-    if (pRes.data) setAllParcelles(pRes.data as Record<string, unknown>[]);
-    if (sRes.data) setAlertes(sRes.data as Record<string, unknown>[]);
-    if (cRes.total !== undefined) setCulturesCount(cRes.total);
-    setLoading(false);
-  }, []);
+  const { data: parcellesData, isLoading: pLoading } = useParcelles({ include_culture: "true" });
+  const { data: alertesData, isLoading: sLoading } = useStressList({ alerte_active: "true" });
+  const { data: culturesData, isLoading: cLoading } = useCultures();
 
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 60000);
-    return () => clearInterval(interval);
-  }, [fetchData]);
-
-  const activeParcelles = allParcelles.filter((p) => p.saison_active);
+  const loading = pLoading || sLoading || cLoading;
+  const allParcelles = parcellesData?.data ?? [];
+  const alertes = alertesData?.data ?? [];
+  const culturesCount = culturesData?.total ?? 0;
+  const activeParcelles = useMemo(() => allParcelles.filter((p) => p.saison_active), [allParcelles]);
 
   if (loading) {
     return (

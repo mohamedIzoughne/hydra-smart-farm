@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { parcelles as api, cultures as cultApi } from "@/lib/api";
+import React, { useState } from "react";
+import { useParcelles, useCultures, useCreateParcelle, useDeleteParcelle } from "@/hooks/useApi";
 import { useNotificationStore } from "@/lib/stores";
 import { DataTable, type Column } from "@/components/smart/DataTable";
 import { Badge } from "@/components/smart/Badge";
@@ -18,11 +18,8 @@ const soilColors: Record<string, { bg: string; text: string; icon: string }> = {
 export default function ParcellesList() {
   const nav = useNavigate();
   const notify = useNotificationStore((s) => s.notify);
-  const [rows, setRows] = useState<Record<string, unknown>[]>([]);
-  const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [formError, setFormError] = useState("");
-  const [cultureOptions, setCultureOptions] = useState<{ id: number; nom: string }[]>([]);
 
   const [filterSaison, setFilterSaison] = useState("");
   const [filterSol, setFilterSol] = useState("");
@@ -31,22 +28,15 @@ export default function ParcellesList() {
     id_culture: "", surface: "", type_de_sol: "Sable", capacite_eau: "", latitude: "", longitude: "",
   });
 
-  const fetchData = async () => {
-    setLoading(true);
-    const params: Record<string, string> = { include_culture: "true" };
-    if (filterSaison) params.saison_active = filterSaison;
-    const res = await api.getAll(params);
-    if (res.data) setRows(res.data as Record<string, unknown>[]);
-    setLoading(false);
-  };
+  const parcelleParams: Record<string, string> = { include_culture: "true" };
+  if (filterSaison) parcelleParams.saison_active = filterSaison;
+  const { data: parcellesData, isLoading: loading } = useParcelles(parcelleParams);
+  const { data: culturesData } = useCultures();
+  const createMutation = useCreateParcelle();
+  const deleteMutation = useDeleteParcelle();
 
-  const loadOptions = async () => {
-    const c = await cultApi.getAll();
-    if (c.data) setCultureOptions((c.data as Record<string, unknown>[]).map((x) => ({ id: x.id_culture as number, nom: String(x.nom_culture) })));
-  };
-
-  useEffect(() => { fetchData(); loadOptions(); }, [filterSaison]);
-
+  const rows = parcellesData?.data ?? [];
+  const cultureOptions = (culturesData?.data ?? []).map((x) => ({ id: x.id_culture as number, nom: String(x.nom_culture) }));
   const filtered = rows.filter((r) => !filterSol || r.type_de_sol === filterSol);
 
   const handleCreate = async () => {
@@ -60,18 +50,22 @@ export default function ParcellesList() {
     if (form.latitude) payload.latitude = parseFloat(form.latitude);
     if (form.longitude) payload.longitude = parseFloat(form.longitude);
 
-    const res = await api.create(payload);
-    if (res.error) { setFormError(res.error); return; }
-    notify("success", "Parcelle créée");
-    setModalOpen(false);
-    fetchData();
+    try {
+      await createMutation.mutateAsync(payload);
+      notify("success", "Parcelle créée");
+      setModalOpen(false);
+    } catch (e: any) {
+      setFormError(e.message);
+    }
   };
 
   const handleDelete = async (id: number) => {
-    const res = await api.delete(id);
-    if (res.error) { notify("error", res.error); return; }
-    notify("success", "Parcelle supprimée");
-    fetchData();
+    try {
+      await deleteMutation.mutateAsync(id);
+      notify("success", "Parcelle supprimée");
+    } catch (e: any) {
+      notify("error", e.message);
+    }
   };
 
   const columns: Column[] = [
