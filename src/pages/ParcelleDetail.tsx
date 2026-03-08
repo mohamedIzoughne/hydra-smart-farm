@@ -1,66 +1,58 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { parcelles as api, mesures as mesuresApi, besoins as besoinsApi, stress as stressApi } from "@/lib/api";
+import {
+  useParcelle, useParcelleBesoins, useParcelleStress,
+  useOuvrirSaison, useFermerSaison, useCreateMesure,
+  useAppliquerBesoin, useSimulerStress, useWeatherSync,
+} from "@/hooks/useApi";
 import { useNotificationStore } from "@/lib/stores";
 import { Badge, stressBadgeType } from "@/components/smart/Badge";
 import { DataTable, type Column } from "@/components/smart/DataTable";
 import { Modal } from "@/components/smart/Modal";
 import { FormField } from "@/components/smart/FormField";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Play, Square, FlaskConical, Droplets, AlertTriangle, MapPin, Layers, Ruler } from "lucide-react";
+import { ArrowLeft, Play, Square, FlaskConical, Droplets, AlertTriangle, MapPin, Layers, Ruler, CloudSun, Loader2 } from "lucide-react";
 
 export default function ParcelleDetail() {
   const { id } = useParams();
   const parcelleId = Number(id);
   const notify = useNotificationStore((s) => s.notify);
 
-  const [data, setData] = useState<Record<string, unknown> | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading: loading } = useParcelle(parcelleId);
+  const { data: besoinsList = [] } = useParcelleBesoins(parcelleId, { per_page: "14" });
+  const { data: stressList = [] } = useParcelleStress(parcelleId);
+
   const [confirmFermer, setConfirmFermer] = useState(false);
   const [simResult, setSimResult] = useState<Record<string, unknown> | null>(null);
-
   const [mesureForm, setMesureForm] = useState({ date_prevision: "", temperature: "", pluie: "", humidite: "" });
   const [mesureError, setMesureError] = useState("");
-  const [mesureLoading, setMesureLoading] = useState(false);
-
-  const [besoinsList, setBesoinsList] = useState<Record<string, unknown>[]>([]);
-  const [stressList, setStressList] = useState<Record<string, unknown>[]>([]);
   const [editingBesoinId, setEditingBesoinId] = useState<number | null>(null);
   const [editVolume, setEditVolume] = useState("");
 
-  const fetchAll = async () => {
-    setLoading(true);
-    const [pRes, bRes, sRes] = await Promise.all([
-      api.getById(parcelleId),
-      api.historiqueBesoins(parcelleId, { per_page: "14" }),
-      api.historiqueStress(parcelleId),
-    ]);
-    if (pRes.data) setData(pRes.data as Record<string, unknown>);
-    if (bRes.data) setBesoinsList(bRes.data as Record<string, unknown>[]);
-    if (sRes.data) setStressList(sRes.data as Record<string, unknown>[]);
-    setLoading(false);
-  };
-
-  useEffect(() => { fetchAll(); }, [id]);
+  const ouvrirSaison = useOuvrirSaison();
+  const fermerSaison = useFermerSaison();
+  const createMesure = useCreateMesure();
+  const appliquerBesoin = useAppliquerBesoin();
+  const simulerStress = useSimulerStress();
+  const weatherSync = useWeatherSync();
 
   const handleOuvrirSaison = async () => {
-    const res = await api.ouvrirSaison(parcelleId);
-    if (res.error) { notify("error", res.error); return; }
-    notify("success", "Saison ouverte !");
-    fetchAll();
+    try {
+      await ouvrirSaison.mutateAsync({ id: parcelleId });
+      notify("success", "Saison ouverte !");
+    } catch (e: any) { notify("error", e.message); }
   };
 
   const handleFermerSaison = async () => {
-    const res = await api.fermerSaison(parcelleId);
-    if (res.error) { notify("error", res.error); return; }
-    notify("success", "Saison clôturée. Audit de stress généré.");
-    setConfirmFermer(false);
-    fetchAll();
+    try {
+      await fermerSaison.mutateAsync(parcelleId);
+      notify("success", "Saison clôturée. Audit de stress généré.");
+      setConfirmFermer(false);
+    } catch (e: any) { notify("error", e.message); }
   };
 
   const handleAddMesure = async () => {
     setMesureError("");
-    setMesureLoading(true);
     const payload: Record<string, unknown> = {
       id_parcelle: parcelleId,
       date_prevision: mesureForm.date_prevision,
@@ -68,28 +60,35 @@ export default function ParcelleDetail() {
       pluie: parseFloat(mesureForm.pluie),
     };
     if (mesureForm.humidite) payload.humidite = parseFloat(mesureForm.humidite);
-    const res = await mesuresApi.create(payload);
-    setMesureLoading(false);
-    if (res.error) { setMesureError(res.error); return; }
-    notify("success", "Mesure ajoutée" + (res.besoin_genere ? " — besoin calculé automatiquement" : ""));
-    setMesureForm({ date_prevision: "", temperature: "", pluie: "", humidite: "" });
-    fetchAll();
+    try {
+      const res = await createMesure.mutateAsync(payload);
+      notify("success", "Mesure ajoutée" + (res.besoin_genere ? " — besoin calculé automatiquement" : ""));
+      setMesureForm({ date_prevision: "", temperature: "", pluie: "", humidite: "" });
+    } catch (e: any) { setMesureError(e.message); }
   };
 
   const handleAppliquer = async (besoinId: number) => {
     const vol = parseFloat(editVolume);
     if (isNaN(vol) || vol < 0) { notify("error", "Volume invalide"); return; }
-    const res = await besoinsApi.appliquer(besoinId, vol);
-    if (res.error) { notify("error", res.error); return; }
-    notify("success", "Volume appliqué enregistré");
-    setEditingBesoinId(null);
-    fetchAll();
+    try {
+      await appliquerBesoin.mutateAsync({ id: besoinId, volume: vol });
+      notify("success", "Volume appliqué enregistré");
+      setEditingBesoinId(null);
+    } catch (e: any) { notify("error", e.message); }
   };
 
   const handleSimuler = async () => {
-    const res = await stressApi.simuler(parcelleId);
-    if (res.error) { notify("error", res.error); return; }
-    setSimResult(res.simulation as Record<string, unknown>);
+    try {
+      const result = await simulerStress.mutateAsync(parcelleId);
+      setSimResult(result);
+    } catch (e: any) { notify("error", e.message); }
+  };
+
+  const handleWeatherSync = async () => {
+    try {
+      const res = await weatherSync.mutateAsync({ parcelleId, days: 7 });
+      notify("success", String(res.message));
+    } catch (e: any) { notify("error", e.message); }
   };
 
   if (loading) return (
@@ -103,6 +102,7 @@ export default function ParcelleDetail() {
 
   const culture = data.culture as Record<string, unknown> | null;
   const saisonActive = Boolean(data.saison_active);
+  const hasCoords = !!data.latitude && !!data.longitude;
   const daysSince = data.date_debut_saison
     ? Math.floor((Date.now() - new Date(String(data.date_debut_saison)).getTime()) / 86400000)
     : 0;
@@ -212,10 +212,19 @@ export default function ParcelleDetail() {
         </div>
       </div>
 
+      {/* Weather sync + manual mesure */}
       {saisonActive && (
-        <div className="bg-card border border-border/60 rounded-2xl p-6 shadow-sm">
-          <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground mb-4">Ajouter une mesure climatique</p>
-          {mesureError && <p className="text-sm text-destructive bg-destructive/[0.08] border border-destructive/20 p-3 rounded-xl mb-4">{mesureError}</p>}
+        <div className="bg-card border border-border/60 rounded-2xl p-6 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Ajouter une mesure climatique</p>
+            {hasCoords && (
+              <Button variant="outline" size="sm" className="rounded-xl font-semibold gap-1.5" onClick={handleWeatherSync} disabled={weatherSync.isPending}>
+                {weatherSync.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CloudSun className="w-3.5 h-3.5" />}
+                Sync météo 7j
+              </Button>
+            )}
+          </div>
+          {mesureError && <p className="text-sm text-destructive bg-destructive/[0.08] border border-destructive/20 p-3 rounded-xl">{mesureError}</p>}
           <div className="flex flex-wrap gap-3 items-end">
             <FormField label="Date" required className="flex-1 min-w-[130px]">
               <input type="date" className="field-input py-1.5" value={mesureForm.date_prevision} onChange={(e) => setMesureForm({ ...mesureForm, date_prevision: e.target.value })} />
@@ -229,8 +238,8 @@ export default function ParcelleDetail() {
             <FormField label="Humidité (%)" className="w-28">
               <input type="number" step="0.1" min="0" max="100" className="field-input py-1.5" value={mesureForm.humidite} onChange={(e) => setMesureForm({ ...mesureForm, humidite: e.target.value })} />
             </FormField>
-            <Button size="sm" className="rounded-xl font-semibold" onClick={handleAddMesure} disabled={mesureLoading}>
-              {mesureLoading ? "..." : "Ajouter"}
+            <Button size="sm" className="rounded-xl font-semibold" onClick={handleAddMesure} disabled={createMesure.isPending}>
+              {createMesure.isPending ? "..." : "Ajouter"}
             </Button>
           </div>
         </div>

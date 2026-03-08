@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { cultures as api } from "@/lib/api";
+import React, { useState } from "react";
+import { useCultures, useCreateCulture, useUpdateCulture, useDeleteCulture } from "@/hooks/useApi";
 import { useNotificationStore } from "@/lib/stores";
 import { DataTable, type Column } from "@/components/smart/DataTable";
 import { Modal } from "@/components/smart/Modal";
@@ -43,8 +43,6 @@ function CoeffPill({ label, value }: { label: string; value: unknown }) {
 
 export default function CulturesList() {
   const notify = useNotificationStore((s) => s.notify);
-  const [rows, setRows] = useState<Record<string, unknown>[]>([]);
-  const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<Record<string, unknown> | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -52,17 +50,13 @@ export default function CulturesList() {
   const [search, setSearch] = useState("");
   const [besoinMax, setBesoinMax] = useState("");
 
-  const fetchData = async () => {
-    setLoading(true);
-    const params: Record<string, string> = {};
-    if (besoinMax) params.besoin_max = besoinMax;
-    const res = await api.getAll(params);
-    if (res.data) setRows(res.data as Record<string, unknown>[]);
-    setLoading(false);
-  };
+  const params = besoinMax ? { besoin_max: besoinMax } : undefined;
+  const { data: culturesData, isLoading: loading } = useCultures(params);
+  const createMutation = useCreateCulture();
+  const updateMutation = useUpdateCulture();
+  const deleteMutation = useDeleteCulture();
 
-  useEffect(() => { fetchData(); }, [besoinMax]);
-
+  const rows = culturesData?.data ?? [];
   const filtered = rows.filter((r) => String(r.nom_culture).toLowerCase().includes(search.toLowerCase()));
 
   const handleSave = async () => {
@@ -75,20 +69,27 @@ export default function CulturesList() {
       coeff_sol_limon: parseFloat(form.coeff_sol_limon),
       coeff_sol_argile: parseFloat(form.coeff_sol_argile),
     };
-    const res = editItem
-      ? await api.update(editItem.id_culture as number, payload)
-      : await api.create(payload);
-    if (res.error) { setFormError(res.error); return; }
-    notify("success", editItem ? "Culture mise à jour" : "Culture créée");
-    setModalOpen(false); setEditItem(null); setForm(emptyForm);
-    fetchData();
+    try {
+      if (editItem) {
+        await updateMutation.mutateAsync({ id: editItem.id_culture as number, data: payload });
+        notify("success", "Culture mise à jour");
+      } else {
+        await createMutation.mutateAsync(payload);
+        notify("success", "Culture créée");
+      }
+      setModalOpen(false); setEditItem(null); setForm(emptyForm);
+    } catch (e: any) {
+      setFormError(e.message);
+    }
   };
 
   const handleDelete = async (id: number) => {
-    const res = await api.delete(id);
-    if (res.error) { notify("error", res.error); return; }
-    notify("success", "Culture supprimée");
-    fetchData();
+    try {
+      await deleteMutation.mutateAsync(id);
+      notify("success", "Culture supprimée");
+    } catch (e: any) {
+      notify("error", e.message);
+    }
   };
 
   const openEdit = (row: Record<string, unknown>) => {
