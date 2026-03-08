@@ -404,6 +404,17 @@ export const stress = {
   ),
 };
 
+// ── Weather ──
+
+export const weather = {
+  forecast: (parcelleId: number, days = 7) =>
+    apiFetch(`/weather/forecast/${parcelleId}${qs({ days })}`),
+  history: (parcelleId: number, start: string, end: string) =>
+    apiFetch(`/weather/history/${parcelleId}${qs({ start, end })}`),
+  sync: (parcelleId: number, days = 7) =>
+    apiFetch(`/weather/sync/${parcelleId}${qs({ days })}`, { method: "POST" }),
+};
+
 // Legacy
 export const agriculteurs = {
   getAll: () => apiFetch("/agriculteurs"),
