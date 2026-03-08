@@ -7,7 +7,13 @@ import { Modal } from "@/components/smart/Modal";
 import { FormField } from "@/components/smart/FormField";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Plus, Map } from "lucide-react";
+import { Plus, Map, Layers, Droplets, Eye, Trash2 } from "lucide-react";
+
+const soilColors: Record<string, { bg: string; text: string; icon: string }> = {
+  Sable: { bg: "bg-amber-100/80", text: "text-amber-800", icon: "🏜️" },
+  Limon: { bg: "bg-orange-100/80", text: "text-orange-800", icon: "🌾" },
+  Argile: { bg: "bg-red-100/60", text: "text-red-800", icon: "🧱" },
+};
 
 export default function ParcellesList() {
   const nav = useNavigate();
@@ -69,20 +75,71 @@ export default function ParcellesList() {
   };
 
   const columns: Column[] = [
-    { key: "id_parcelle", label: "#", sortable: true },
-    { key: "culture", label: "Culture", render: (_, row) => {
-      const c = row.culture as Record<string, unknown> | null;
-      return c ? <span className="font-medium text-foreground">{String(c.nom_culture)}</span> : <span className="text-muted-foreground">—</span>;
-    }},
-    { key: "surface", label: "Surface (ha)", sortable: true },
-    { key: "type_de_sol", label: "Sol" },
-    { key: "capacite_eau", label: "Capacité eau (L)", sortable: true, render: (v) => Number(v).toLocaleString("fr-FR") },
-    { key: "saison_active", label: "Saison", render: (v) => <Badge value={v ? "Active" : "Inactive"} type={v ? "success" : "neutral"} /> },
     {
-      key: "actions", label: "", render: (_, row) => (
-        <div className="table-actions" onClick={(e) => e.stopPropagation()}>
-          <Button variant="ghost" size="sm" className="font-semibold" onClick={() => nav(`/parcelles/${row.id_parcelle}`)}>Détail</Button>
-          {!row.saison_active && <Button variant="ghost" size="sm" className="text-destructive font-semibold" onClick={() => handleDelete(row.id_parcelle as number)}>Supprimer</Button>}
+      key: "id_parcelle", label: "#", sortable: true,
+      render: (v) => (
+        <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-primary/[0.08] text-primary text-xs font-bold">
+          {String(v)}
+        </span>
+      ),
+    },
+    {
+      key: "culture", label: "Culture",
+      render: (_, row) => {
+        const c = row.culture as Record<string, unknown> | null;
+        return c ? (
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-primary" />
+            <span className="font-semibold text-foreground">{String(c.nom_culture)}</span>
+          </div>
+        ) : <span className="text-muted-foreground italic text-xs">Non assignée</span>;
+      },
+    },
+    {
+      key: "surface", label: "Surface", sortable: true, align: "right",
+      render: (v) => (
+        <span className="font-mono text-foreground/90 tabular-nums">
+          {Number(v).toLocaleString("fr-FR")} <span className="text-muted-foreground text-xs">ha</span>
+        </span>
+      ),
+    },
+    {
+      key: "type_de_sol", label: "Sol",
+      render: (v) => {
+        const soil = soilColors[String(v)] || { bg: "bg-muted", text: "text-foreground", icon: "" };
+        return (
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${soil.bg} ${soil.text}`}>
+            <span>{soil.icon}</span> {String(v)}
+          </span>
+        );
+      },
+    },
+    {
+      key: "capacite_eau", label: "Capacité eau", sortable: true, align: "right",
+      render: (v) => (
+        <div className="flex items-center gap-2 justify-end">
+          <Droplets className="w-3.5 h-3.5 text-accent" />
+          <span className="font-mono tabular-nums text-foreground/90">{Number(v).toLocaleString("fr-FR")}</span>
+          <span className="text-muted-foreground text-xs">L</span>
+        </div>
+      ),
+    },
+    {
+      key: "saison_active", label: "Saison",
+      render: (v) => <Badge value={v ? "Active" : "Inactive"} type={v ? "success" : "neutral"} />,
+    },
+    {
+      key: "actions", label: "",
+      render: (_, row) => (
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200" onClick={(e) => e.stopPropagation()}>
+          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg hover:bg-primary/10 hover:text-primary" onClick={() => nav(`/parcelles/${row.id_parcelle}`)}>
+            <Eye className="w-4 h-4" />
+          </Button>
+          {!row.saison_active && (
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDelete(row.id_parcelle as number)}>
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -91,26 +148,24 @@ export default function ParcellesList() {
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5 mb-1">
-            <div className="w-10 h-10 rounded-xl bg-primary/[0.08] flex items-center justify-center">
-              <Map className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="page-title">Mes parcelles</h1>
-              <p className="text-sm text-muted-foreground">{rows.length} parcelle{rows.length !== 1 ? "s" : ""} enregistrée{rows.length !== 1 ? "s" : ""}</p>
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10 flex items-center justify-center shadow-sm">
+            <Map className="w-6 h-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="page-title">Mes parcelles</h1>
+            <p className="text-sm text-muted-foreground">{rows.length} parcelle{rows.length !== 1 ? "s" : ""} enregistrée{rows.length !== 1 ? "s" : ""}</p>
           </div>
         </div>
-        <Button onClick={() => { setModalOpen(true); setFormError(""); }} className="rounded-full px-5 shadow-md shadow-primary/15">
+        <Button onClick={() => { setModalOpen(true); setFormError(""); }} className="rounded-full px-5 shadow-md shadow-primary/15 gap-2">
           <Plus className="w-4 h-4" /> Nouvelle parcelle
         </Button>
       </div>
 
-      <div className="filter-bar rounded-2xl">
+      <div className="flex flex-wrap items-end gap-3 p-4 rounded-2xl border border-border/40 bg-card/80 backdrop-blur-sm">
         <div>
           <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground block mb-1.5">Saison</label>
-          <select className="field-input py-1.5" value={filterSaison} onChange={(e) => setFilterSaison(e.target.value)}>
+          <select className="field-input py-1.5 min-w-[120px]" value={filterSaison} onChange={(e) => setFilterSaison(e.target.value)}>
             <option value="">Toutes</option>
             <option value="true">Active</option>
             <option value="false">Inactive</option>
@@ -118,16 +173,23 @@ export default function ParcellesList() {
         </div>
         <div>
           <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground block mb-1.5">Type de sol</label>
-          <select className="field-input py-1.5" value={filterSol} onChange={(e) => setFilterSol(e.target.value)}>
+          <select className="field-input py-1.5 min-w-[120px]" value={filterSol} onChange={(e) => setFilterSol(e.target.value)}>
             <option value="">Tous</option>
-            <option value="Sable">Sable</option>
-            <option value="Limon">Limon</option>
-            <option value="Argile">Argile</option>
+            <option value="Sable">🏜️ Sable</option>
+            <option value="Limon">🌾 Limon</option>
+            <option value="Argile">🧱 Argile</option>
           </select>
         </div>
       </div>
 
-      <DataTable columns={columns} rows={filtered} loading={loading} onRowClick={(row) => nav(`/parcelles/${row.id_parcelle}`)} />
+      <DataTable
+        columns={columns}
+        rows={filtered}
+        loading={loading}
+        onRowClick={(row) => nav(`/parcelles/${row.id_parcelle}`)}
+        emptyMessage="Aucune parcelle trouvée"
+        emptyIcon={<Layers className="w-12 h-12 text-muted-foreground/15" strokeWidth={1.5} />}
+      />
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nouvelle parcelle" size="lg" footer={
         <><Button variant="outline" onClick={() => setModalOpen(false)} className="rounded-xl">Annuler</Button><Button onClick={handleCreate} className="rounded-xl">Créer</Button></>
