@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { auth } from "@/lib/api";
 import { useAuthStore, type AuthUser } from "@/lib/stores";
+import { DEMO_EMAIL, DEMO_PASSWORD, DEMO_USER, DEMO_TOKEN, DEMO_REFRESH } from "@/lib/demo-data";
 import { Leaf, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -18,12 +19,24 @@ export default function LoginPage() {
     setError("");
     if (!mail || !password) { setError("Tous les champs sont requis"); return; }
 
+    // Demo credentials bypass
+    if (mail === DEMO_EMAIL && password === DEMO_PASSWORD) {
+      login(DEMO_USER, DEMO_TOKEN, DEMO_REFRESH);
+      navigate("/", { replace: true });
+      return;
+    }
+
     setLoading(true);
     const res = await auth.login({ mail, mot_de_passe: password });
     setLoading(false);
 
     if (res.error) {
-      setError(res.error);
+      // If backend is down and credentials don't match demo, show specific message
+      if (res.error.includes("serveur")) {
+        setError("Le serveur est indisponible. Utilisez le compte démo : izourne@gmail.com / 1234568");
+      } else {
+        setError(res.error);
+      }
       return;
     }
 
@@ -83,6 +96,11 @@ export default function LoginPage() {
               Se connecter
             </Button>
           </form>
+
+          <div className="mt-4 p-3 bg-muted/50 rounded-md border border-dashed">
+            <p className="text-xs text-muted-foreground font-medium mb-1">Compte démo :</p>
+            <p className="text-xs text-muted-foreground font-mono">izourne@gmail.com / 1234568</p>
+          </div>
         </div>
 
         <p className="text-center text-sm text-muted-foreground mt-4">

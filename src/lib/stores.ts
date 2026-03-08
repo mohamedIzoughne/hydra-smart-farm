@@ -70,9 +70,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: () => {
-    // fire-and-forget backend call
     const token = get().accessToken;
-    if (token) {
+    // Don't call backend in demo mode
+    if (token && token !== "demo-access-token-smartagri") {
       const base = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
       fetch(`${base}/auth/logout`, {
         method: "POST",
