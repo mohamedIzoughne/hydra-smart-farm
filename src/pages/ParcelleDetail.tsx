@@ -7,7 +7,6 @@ import { DataTable, type Column } from "@/components/smart/DataTable";
 import { Modal } from "@/components/smart/Modal";
 import { FormField } from "@/components/smart/FormField";
 import { Button } from "@/components/ui/button";
-import { StatCard } from "@/components/smart/StatCard";
 import { ArrowLeft, Play, Square, Plus, FlaskConical, Droplets, AlertTriangle } from "lucide-react";
 
 export default function ParcelleDetail() {
@@ -20,12 +19,10 @@ export default function ParcelleDetail() {
   const [confirmFermer, setConfirmFermer] = useState(false);
   const [simResult, setSimResult] = useState<Record<string, unknown> | null>(null);
 
-  // Mesure form
   const [mesureForm, setMesureForm] = useState({ date_prevision: "", temperature: "", pluie: "", humidite: "" });
   const [mesureError, setMesureError] = useState("");
   const [mesureLoading, setMesureLoading] = useState(false);
 
-  // Besoins
   const [besoinsList, setBesoinsList] = useState<Record<string, unknown>[]>([]);
   const [stressList, setStressList] = useState<Record<string, unknown>[]>([]);
   const [editingBesoinId, setEditingBesoinId] = useState<number | null>(null);
@@ -106,14 +103,14 @@ export default function ParcelleDetail() {
 
   const besoinColumns: Column[] = [
     { key: "date_besoin", label: "Date", sortable: true },
-    { key: "volume_recommande", label: "Volume recommandé (L)", render: (v) => Number(v).toLocaleString("fr-FR") },
+    { key: "volume_recommande", label: "Recommandé (L)", render: (v) => Number(v).toLocaleString("fr-FR") },
     {
-      key: "volume_applique", label: "Volume appliqué (L)", render: (v, row) => {
+      key: "volume_applique", label: "Appliqué (L)", render: (v, row) => {
         const bid = row.id_besoin as number;
         if (editingBesoinId === bid) {
           return (
             <div className="flex items-center gap-1">
-              <input type="number" className="w-28 border rounded px-2 py-1 text-sm bg-background" value={editVolume}
+              <input type="number" className="w-24 border rounded px-2 py-1 text-sm bg-background" value={editVolume}
                 onChange={(e) => setEditVolume(e.target.value)} autoFocus onKeyDown={(e) => e.key === "Enter" && handleAppliquer(bid)} />
               <Button size="sm" onClick={() => handleAppliquer(bid)}>OK</Button>
               <Button size="sm" variant="ghost" onClick={() => setEditingBesoinId(null)}>✕</Button>
@@ -126,7 +123,7 @@ export default function ParcelleDetail() {
             setEditingBesoinId(bid);
             setEditVolume(v ? String(v) : "");
           }}>
-            {v ? Number(v).toLocaleString("fr-FR") : <span className="text-muted-foreground italic">Cliquer pour saisir</span>}
+            {v ? Number(v).toLocaleString("fr-FR") : <span className="text-muted-foreground italic text-xs">Saisir</span>}
           </span>
         );
       },
@@ -140,22 +137,20 @@ export default function ParcelleDetail() {
     { key: "besoin_total_saison", label: "Besoin total (L)", render: (v) => Number(v).toLocaleString("fr-FR") },
     { key: "deficit_calcule", label: "Déficit (L)", render: (v) => Number(v).toLocaleString("fr-FR") },
     { key: "alerte_active", label: "Alerte", render: (v) => <Badge value={v ? "Oui" : "Non"} type={v ? "danger" : "neutral"} /> },
-    { key: "cultures_suggere", label: "Cultures suggérées", render: (v) => v ? String(v) : "—" },
+    { key: "cultures_suggere", label: "Suggestions", render: (v) => v ? String(v) : "—" },
   ];
 
   return (
     <div className="space-y-6">
-      <Link to="/parcelles" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="w-4 h-4" /> Retour
+      <Link to="/parcelles" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+        <ArrowLeft className="w-4 h-4" /> Parcelles
       </Link>
 
-      {/* Info panel */}
-      <div className="bg-card border rounded-xl p-6">
+      <div className="bg-card border rounded-lg p-5">
         <div className="flex flex-wrap gap-6">
           <div className="flex-1 min-w-[200px]">
             <h1 className="text-xl font-bold font-heading">Parcelle #{data.id_parcelle as number}</h1>
-            <p className="text-muted-foreground mt-1">Propriétaire: {String(data.agriculteur_nom || data.id_agriculteur)}</p>
-            <div className="grid grid-cols-2 gap-x-8 gap-y-2 mt-4 text-sm">
+            <div className="grid grid-cols-2 gap-x-8 gap-y-1.5 mt-3 text-sm">
               <span className="text-muted-foreground">Culture</span><span>{culture ? String(culture.nom_culture) : "Aucune"}</span>
               <span className="text-muted-foreground">Sol</span><span>{String(data.type_de_sol)}</span>
               <span className="text-muted-foreground">Surface</span><span>{String(data.surface)} ha</span>
@@ -164,90 +159,85 @@ export default function ParcelleDetail() {
             </div>
           </div>
 
-          {/* Season control */}
-          <div className="w-64 bg-muted/40 rounded-lg p-4 border">
-            <h3 className="font-semibold text-sm mb-3">Contrôle de saison</h3>
+          <div className="w-56 bg-muted/40 rounded-lg p-4 border">
+            <p className="section-label !mb-2">Saison</p>
             {saisonActive ? (
               <>
-                <Badge value={`Active depuis ${daysSince} jours`} type="success" className="mb-3" />
-                <p className="text-xs text-muted-foreground mb-3">Début: {String(data.date_debut_saison)}</p>
-                <Button variant="destructive" className="w-full" onClick={() => setConfirmFermer(true)}>
-                  <Square className="w-4 h-4" /> Fermer la saison
+                <Badge value={`Jour ${daysSince}`} type="success" className="mb-2" />
+                <p className="text-xs text-muted-foreground mb-3">Depuis {String(data.date_debut_saison)}</p>
+                <Button variant="destructive" size="sm" className="w-full" onClick={() => setConfirmFermer(true)}>
+                  <Square className="w-3 h-3" /> Clôturer
                 </Button>
               </>
             ) : (
               <>
                 <Badge value="Inactive" type="neutral" className="mb-3" />
-                <Button className="w-full" onClick={handleOuvrirSaison} disabled={!culture}>
-                  <Play className="w-4 h-4" /> Ouvrir la saison
+                <Button size="sm" className="w-full" onClick={handleOuvrirSaison} disabled={!culture}>
+                  <Play className="w-3 h-3" /> Démarrer
                 </Button>
-                {!culture && <p className="text-xs text-destructive mt-2">Assignez une culture d'abord</p>}
+                {!culture && <p className="text-xs text-destructive mt-1.5">Assignez une culture d'abord</p>}
               </>
             )}
           </div>
         </div>
       </div>
 
-      {/* Add mesure form */}
       {saisonActive && (
-        <div className="bg-card border rounded-xl p-5">
-          <h2 className="text-lg font-semibold font-heading mb-3 flex items-center gap-2"><Plus className="w-4 h-4" /> Ajouter une mesure climatique</h2>
+        <div className="bg-card border rounded-lg p-5">
+          <p className="section-label">Ajouter une mesure climatique</p>
           {mesureError && <p className="text-sm text-destructive bg-destructive/10 p-2 rounded mb-3">{mesureError}</p>}
           <div className="flex flex-wrap gap-3 items-end">
-            <FormField label="Date prévision" required className="flex-1 min-w-[140px]">
-              <input type="date" className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={mesureForm.date_prevision} onChange={(e) => setMesureForm({ ...mesureForm, date_prevision: e.target.value })} />
+            <FormField label="Date" required className="flex-1 min-w-[130px]">
+              <input type="date" className="w-full border rounded-md px-3 py-1.5 text-sm bg-background" value={mesureForm.date_prevision} onChange={(e) => setMesureForm({ ...mesureForm, date_prevision: e.target.value })} />
             </FormField>
-            <FormField label="Température (°C)" required className="w-32">
-              <input type="number" step="0.1" className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={mesureForm.temperature} onChange={(e) => setMesureForm({ ...mesureForm, temperature: e.target.value })} />
+            <FormField label="Temp. (°C)" required className="w-28">
+              <input type="number" step="0.1" className="w-full border rounded-md px-3 py-1.5 text-sm bg-background" value={mesureForm.temperature} onChange={(e) => setMesureForm({ ...mesureForm, temperature: e.target.value })} />
             </FormField>
-            <FormField label="Pluie (mm)" required className="w-32">
-              <input type="number" step="0.1" min="0" className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={mesureForm.pluie} onChange={(e) => setMesureForm({ ...mesureForm, pluie: e.target.value })} />
+            <FormField label="Pluie (mm)" required className="w-28">
+              <input type="number" step="0.1" min="0" className="w-full border rounded-md px-3 py-1.5 text-sm bg-background" value={mesureForm.pluie} onChange={(e) => setMesureForm({ ...mesureForm, pluie: e.target.value })} />
             </FormField>
-            <FormField label="Humidité (%)" className="w-32">
-              <input type="number" step="0.1" min="0" max="100" className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={mesureForm.humidite} onChange={(e) => setMesureForm({ ...mesureForm, humidite: e.target.value })} />
+            <FormField label="Humidité (%)" className="w-28">
+              <input type="number" step="0.1" min="0" max="100" className="w-full border rounded-md px-3 py-1.5 text-sm bg-background" value={mesureForm.humidite} onChange={(e) => setMesureForm({ ...mesureForm, humidite: e.target.value })} />
             </FormField>
-            <Button onClick={handleAddMesure} disabled={mesureLoading} className="mb-[1px]">
+            <Button size="sm" onClick={handleAddMesure} disabled={mesureLoading}>
               {mesureLoading ? "..." : "Ajouter"}
             </Button>
           </div>
         </div>
       )}
 
-      {/* Besoins en eau */}
       <section>
-        <h2 className="text-lg font-semibold font-heading mb-3 flex items-center gap-2"><Droplets className="w-5 h-5 text-accent" /> Besoins en Eau</h2>
+        <div className="flex items-center justify-between mb-3">
+          <p className="section-label flex items-center gap-1.5"><Droplets className="w-3.5 h-3.5 text-accent" /> Besoins en eau</p>
+        </div>
         <DataTable columns={besoinColumns} rows={besoinsList} emptyMessage="Aucun besoin calculé" />
       </section>
 
-      {/* Stress historique */}
       <section>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold font-heading flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-warning" /> Historique Stress</h2>
-          <Button variant="outline" size="sm" onClick={handleSimuler}><FlaskConical className="w-4 h-4" /> Simuler</Button>
+          <p className="section-label flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5 text-warning" /> Historique stress</p>
+          <Button variant="outline" size="sm" onClick={handleSimuler}><FlaskConical className="w-3.5 h-3.5" /> Simuler</Button>
         </div>
         <DataTable columns={stressColumns} rows={stressList} emptyMessage="Aucun enregistrement" />
       </section>
 
-      {/* Confirm fermer saison */}
-      <Modal open={confirmFermer} onClose={() => setConfirmFermer(false)} title="Fermer la saison ?" size="sm" footer={
-        <><Button variant="outline" onClick={() => setConfirmFermer(false)}>Annuler</Button><Button variant="destructive" onClick={handleFermerSaison}>Confirmer la clôture</Button></>
+      <Modal open={confirmFermer} onClose={() => setConfirmFermer(false)} title="Clôturer la saison ?" size="sm" footer={
+        <><Button variant="outline" onClick={() => setConfirmFermer(false)}>Annuler</Button><Button variant="destructive" onClick={handleFermerSaison}>Clôturer</Button></>
       }>
-        <p className="text-sm text-muted-foreground">Cette action génère le rapport de stress hydrique et clôture la saison. Vous ne pourrez plus ajouter de mesures.</p>
+        <p className="text-sm text-muted-foreground">Un rapport de stress hydrique sera généré. Vous ne pourrez plus ajouter de mesures.</p>
       </Modal>
 
-      {/* Simulation result */}
-      <Modal open={!!simResult} onClose={() => setSimResult(null)} title="Résultat de la simulation" footer={
+      <Modal open={!!simResult} onClose={() => setSimResult(null)} title="Simulation" footer={
         <Button variant="outline" onClick={() => setSimResult(null)}>Fermer</Button>
       }>
         {simResult && (
-          <div className="space-y-3 text-sm">
-            <div className="flex justify-between"><span className="text-muted-foreground">Besoin total saison</span><span className="font-semibold">{Number(simResult.besoin_total).toLocaleString("fr-FR")} L</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Capacité source</span><span className="font-semibold">{Number(simResult.capacite_source).toLocaleString("fr-FR")} L</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Déficit</span><span className="font-semibold">{Number(simResult.deficit).toLocaleString("fr-FR")} L</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Niveau stress</span><Badge value={String(simResult.niveau_stress)} type={stressBadgeType(String(simResult.niveau_stress))} /></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Alerte</span><Badge value={simResult.alerte_active ? "Oui" : "Non"} type={simResult.alerte_active ? "danger" : "neutral"} /></div>
-            {simResult.cultures_suggere && <div><span className="text-muted-foreground">Cultures suggérées:</span><p className="mt-1">{String(simResult.cultures_suggere)}</p></div>}
-            <p className="text-xs text-muted-foreground italic mt-2">Simulation uniquement — non enregistrée en base.</p>
+          <div className="space-y-2.5 text-sm">
+            <div className="flex justify-between"><span className="text-muted-foreground">Besoin total</span><span className="font-medium">{Number(simResult.besoin_total).toLocaleString("fr-FR")} L</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Capacité</span><span className="font-medium">{Number(simResult.capacite_source).toLocaleString("fr-FR")} L</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Déficit</span><span className="font-medium">{Number(simResult.deficit).toLocaleString("fr-FR")} L</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Niveau</span><Badge value={String(simResult.niveau_stress)} type={stressBadgeType(String(simResult.niveau_stress))} /></div>
+            {simResult.cultures_suggere && <div><span className="text-muted-foreground">Suggestions:</span><p className="mt-0.5">{String(simResult.cultures_suggere)}</p></div>}
+            <p className="text-xs text-muted-foreground italic pt-1">Simulation — non enregistrée.</p>
           </div>
         )}
       </Modal>

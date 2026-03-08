@@ -9,22 +9,29 @@ interface StatCardProps {
 }
 
 const colorMap = {
-  primary: "bg-primary/10 text-primary",
-  secondary: "bg-secondary/10 text-secondary",
-  accent: "bg-accent/10 text-accent",
-  destructive: "bg-destructive/10 text-destructive",
+  primary: "text-primary",
+  secondary: "text-secondary",
+  accent: "text-accent",
+  destructive: "text-destructive",
+};
+
+const bgMap = {
+  primary: "bg-primary/8",
+  secondary: "bg-secondary/8",
+  accent: "bg-accent/8",
+  destructive: "bg-destructive/8",
 };
 
 export function StatCard({ label, value, icon, color = "primary" }: StatCardProps) {
   return (
-    <div className="stat-card flex items-center gap-4">
-      <div className={cn("flex items-center justify-center w-12 h-12 rounded-lg", colorMap[color])}>
-        {icon}
+    <div className="stat-card">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
+        <div className={cn("flex items-center justify-center w-8 h-8 rounded-md", bgMap[color], colorMap[color])}>
+          {icon}
+        </div>
       </div>
-      <div>
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="text-2xl font-bold font-heading">{value}</p>
-      </div>
+      <p className="text-3xl font-bold font-heading tracking-tight">{value}</p>
     </div>
   );
 }
