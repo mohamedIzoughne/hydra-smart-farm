@@ -14,7 +14,7 @@ export default function ProfilePage() {
   const updateProfileMutation = useUpdateProfile();
   const changePasswordMutation = useChangePassword();
 
-  const user = profileData as AuthUser | undefined;
+  const user = profileData as unknown as AuthUser | undefined;
   const parcelleCount = parcellesData?.data?.length ?? 0;
 
   const [editing, setEditing] = useState(false);
