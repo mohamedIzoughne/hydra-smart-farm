@@ -5,6 +5,7 @@ from app.routes.mesures import mesures_bp
 from app.routes.besoins import besoins_bp
 from app.routes.stress import stress_bp
 from app.routes.auth import auth_bp
+from app.routes.weather import weather_bp
 
 
 def register_routes(app):
@@ -15,3 +16,4 @@ def register_routes(app):
     app.register_blueprint(mesures_bp)
     app.register_blueprint(besoins_bp)
     app.register_blueprint(stress_bp)
+    app.register_blueprint(weather_bp)
