@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 
 const navItems = [
-  { to: "/", label: "Tableau de bord", icon: LayoutDashboard },
+  { to: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
   { to: "/parcelles", label: "Mes parcelles", icon: Map },
   { to: "/cultures", label: "Cultures", icon: Sprout },
   { to: "/mesures", label: "Mes mesures", icon: CloudRain },

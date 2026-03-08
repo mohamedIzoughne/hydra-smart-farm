@@ -2,9 +2,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "@/components/smart/AppLayout";
 import { RequireAuth, RedirectIfAuth } from "@/components/smart/RequireAuth";
+import LandingPage from "./pages/LandingPage";
 import Dashboard from "./pages/Dashboard";
 import CulturesList from "./pages/CulturesList";
 import ParcellesList from "./pages/ParcellesList";
@@ -27,11 +28,12 @@ const App = () => (
         <AppLayout>
           <Routes>
             {/* Public */}
+            <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<RedirectIfAuth><LoginPage /></RedirectIfAuth>} />
             <Route path="/signup" element={<RedirectIfAuth><SignupPage /></RedirectIfAuth>} />
 
             {/* Protected */}
-            <Route path="/" element={<RequireAuth><Dashboard /></RequireAuth>} />
+            <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
             <Route path="/cultures" element={<RequireAuth><CulturesList /></RequireAuth>} />
             <Route path="/parcelles" element={<RequireAuth><ParcellesList /></RequireAuth>} />
             <Route path="/parcelles/:id" element={<RequireAuth><ParcelleDetail /></RequireAuth>} />
