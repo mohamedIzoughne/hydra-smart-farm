@@ -7,7 +7,7 @@ import { Modal } from "@/components/smart/Modal";
 import { FormField } from "@/components/smart/FormField";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { Plus, Map } from "lucide-react";
 
 export default function ParcellesList() {
   const nav = useNavigate();
@@ -72,7 +72,7 @@ export default function ParcellesList() {
     { key: "id_parcelle", label: "#", sortable: true },
     { key: "culture", label: "Culture", render: (_, row) => {
       const c = row.culture as Record<string, unknown> | null;
-      return c ? String(c.nom_culture) : "—";
+      return c ? <span className="font-medium text-foreground">{String(c.nom_culture)}</span> : <span className="text-muted-foreground">—</span>;
     }},
     { key: "surface", label: "Surface (ha)", sortable: true },
     { key: "type_de_sol", label: "Sol" },
@@ -81,35 +81,44 @@ export default function ParcellesList() {
     {
       key: "actions", label: "", render: (_, row) => (
         <div className="table-actions" onClick={(e) => e.stopPropagation()}>
-          <Button variant="ghost" size="sm" onClick={() => nav(`/parcelles/${row.id_parcelle}`)}>Détail</Button>
-          {!row.saison_active && <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDelete(row.id_parcelle as number)}>Supprimer</Button>}
+          <Button variant="ghost" size="sm" className="font-semibold" onClick={() => nav(`/parcelles/${row.id_parcelle}`)}>Détail</Button>
+          {!row.saison_active && <Button variant="ghost" size="sm" className="text-destructive font-semibold" onClick={() => handleDelete(row.id_parcelle as number)}>Supprimer</Button>}
         </div>
       ),
     },
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="page-header">
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="page-title">Mes parcelles</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{rows.length} parcelle{rows.length !== 1 ? "s" : ""}</p>
+          <div className="flex items-center gap-2.5 mb-1">
+            <div className="w-10 h-10 rounded-xl bg-primary/[0.08] flex items-center justify-center">
+              <Map className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="page-title">Mes parcelles</h1>
+              <p className="text-sm text-muted-foreground">{rows.length} parcelle{rows.length !== 1 ? "s" : ""} enregistrée{rows.length !== 1 ? "s" : ""}</p>
+            </div>
+          </div>
         </div>
-        <Button onClick={() => { setModalOpen(true); setFormError(""); }}><Plus className="w-4 h-4" /> Nouvelle parcelle</Button>
+        <Button onClick={() => { setModalOpen(true); setFormError(""); }} className="rounded-full px-5 shadow-md shadow-primary/15">
+          <Plus className="w-4 h-4" /> Nouvelle parcelle
+        </Button>
       </div>
 
-      <div className="filter-bar">
+      <div className="filter-bar rounded-2xl">
         <div>
-          <label className="text-xs text-muted-foreground block mb-1">Saison</label>
-          <select className="border rounded-md px-3 py-1.5 text-sm bg-background" value={filterSaison} onChange={(e) => setFilterSaison(e.target.value)}>
+          <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground block mb-1.5">Saison</label>
+          <select className="field-input py-1.5" value={filterSaison} onChange={(e) => setFilterSaison(e.target.value)}>
             <option value="">Toutes</option>
             <option value="true">Active</option>
             <option value="false">Inactive</option>
           </select>
         </div>
         <div>
-          <label className="text-xs text-muted-foreground block mb-1">Type de sol</label>
-          <select className="border rounded-md px-3 py-1.5 text-sm bg-background" value={filterSol} onChange={(e) => setFilterSol(e.target.value)}>
+          <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground block mb-1.5">Type de sol</label>
+          <select className="field-input py-1.5" value={filterSol} onChange={(e) => setFilterSol(e.target.value)}>
             <option value="">Tous</option>
             <option value="Sable">Sable</option>
             <option value="Limon">Limon</option>
@@ -121,28 +130,28 @@ export default function ParcellesList() {
       <DataTable columns={columns} rows={filtered} loading={loading} onRowClick={(row) => nav(`/parcelles/${row.id_parcelle}`)} />
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nouvelle parcelle" size="lg" footer={
-        <><Button variant="outline" onClick={() => setModalOpen(false)}>Annuler</Button><Button onClick={handleCreate}>Créer</Button></>
+        <><Button variant="outline" onClick={() => setModalOpen(false)} className="rounded-xl">Annuler</Button><Button onClick={handleCreate} className="rounded-xl">Créer</Button></>
       }>
-        <div className="space-y-4">
-          {formError && <p className="text-sm text-destructive bg-destructive/10 p-2 rounded">{formError}</p>}
+        <div className="space-y-5">
+          {formError && <p className="text-sm text-destructive bg-destructive/[0.08] border border-destructive/20 p-3 rounded-xl">{formError}</p>}
           <FormField label="Culture">
-            <select className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={form.id_culture} onChange={(e) => setForm({ ...form, id_culture: e.target.value })}>
+            <select className="field-input" value={form.id_culture} onChange={(e) => setForm({ ...form, id_culture: e.target.value })}>
               <option value="">Aucune</option>
               {cultureOptions.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
             </select>
           </FormField>
           <div className="grid grid-cols-3 gap-4">
-            <FormField label="Surface (ha)" required><input type="number" step="0.01" min="0" className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={form.surface} onChange={(e) => setForm({ ...form, surface: e.target.value })} /></FormField>
+            <FormField label="Surface (ha)" required><input type="number" step="0.01" min="0" className="field-input" value={form.surface} onChange={(e) => setForm({ ...form, surface: e.target.value })} /></FormField>
             <FormField label="Type de sol" required>
-              <select className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={form.type_de_sol} onChange={(e) => setForm({ ...form, type_de_sol: e.target.value })}>
+              <select className="field-input" value={form.type_de_sol} onChange={(e) => setForm({ ...form, type_de_sol: e.target.value })}>
                 <option value="Sable">Sable</option><option value="Limon">Limon</option><option value="Argile">Argile</option>
               </select>
             </FormField>
-            <FormField label="Capacité eau (L)" required><input type="number" step="0.01" min="0" className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={form.capacite_eau} onChange={(e) => setForm({ ...form, capacite_eau: e.target.value })} /></FormField>
+            <FormField label="Capacité eau (L)" required><input type="number" step="0.01" min="0" className="field-input" value={form.capacite_eau} onChange={(e) => setForm({ ...form, capacite_eau: e.target.value })} /></FormField>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <FormField label="Latitude"><input type="number" step="0.000001" className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: e.target.value })} /></FormField>
-            <FormField label="Longitude"><input type="number" step="0.000001" className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: e.target.value })} /></FormField>
+            <FormField label="Latitude"><input type="number" step="0.000001" className="field-input" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: e.target.value })} /></FormField>
+            <FormField label="Longitude"><input type="number" step="0.000001" className="field-input" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: e.target.value })} /></FormField>
           </div>
         </div>
       </Modal>
