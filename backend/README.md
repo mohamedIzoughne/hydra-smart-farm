@@ -60,3 +60,6 @@ specified in `VITE_API_URL` (defaults to `http://localhost:5000/api`).
 | Mesures        | GET, POST, PUT, DELETE `/api/mesures`            |
 | Besoins        | GET, PUT `/api/besoins/:id/appliquer`, DELETE    |
 | Stress         | GET, POST `/api/stress/calculer/:id`, DELETE     |
+| Weather        | GET `/api/weather/forecast/:id`                  |
+|                | GET `/api/weather/history/:id?start=&end=`       |
+|                | POST `/api/weather/sync/:id` (auto-create mesures)|
