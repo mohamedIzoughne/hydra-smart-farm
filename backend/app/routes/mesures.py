@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime
 from flask import Blueprint, request, jsonify
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from app import db
@@ -6,22 +6,32 @@ from app.models.mesure_climatique import MesureClimatique
 from app.models.parcelle import Parcelle
 from app.models.besoin_eau import BesoinEau
 from app.services.calcul_service import calcul_volume_besoin
+from app.utils.auth_helpers import require_auth, check_parcelle_ownership, check_mesure_ownership
 
 mesures_bp = Blueprint("mesures", __name__, url_prefix="/api/mesures")
 
 
 @mesures_bp.route("", methods=["GET"])
-def list_mesures():
+@require_auth
+def list_mesures(current_user):
     parcelle_id = request.args.get("parcelle_id")
-    if not parcelle_id:
-        return jsonify({"error": "parcelle_id est requis"}), 400
-    try:
-        parcelle_id = int(parcelle_id)
-    except ValueError:
-        return jsonify({"error": "parcelle_id doit être un entier"}), 400
 
     try:
-        query = MesureClimatique.query.filter_by(id_parcelle=parcelle_id).order_by(MesureClimatique.date_prevision.desc())
+        # Always scope to current user's parcelles
+        user_parcelle_ids = [p.id_parcelle for p in Parcelle.query.filter_by(id_agriculteur=current_user.id_agriculteur).all()]
+
+        query = MesureClimatique.query.filter(MesureClimatique.id_parcelle.in_(user_parcelle_ids))
+
+        if parcelle_id:
+            try:
+                pid = int(parcelle_id)
+            except ValueError:
+                return jsonify({"error": "parcelle_id doit être un entier"}), 400
+            if pid not in user_parcelle_ids:
+                return jsonify({"error": "Accès refusé"}), 403
+            query = query.filter_by(id_parcelle=pid)
+
+        query = query.order_by(MesureClimatique.date_prevision.desc())
 
         depuis = request.args.get("depuis")
         if depuis:
@@ -44,11 +54,10 @@ def list_mesures():
 
 
 @mesures_bp.route("/<int:id>", methods=["GET"])
-def get_mesure(id):
+@require_auth
+def get_mesure(id, current_user):
     try:
-        mesure = db.session.get(MesureClimatique, id)
-        if not mesure:
-            return jsonify({"error": "Mesure non trouvée"}), 404
+        mesure = check_mesure_ownership(id, current_user)
         data = mesure.to_dict()
         data["besoin_eau"] = mesure.besoin.to_dict() if mesure.besoin else None
         return jsonify({"data": data})
@@ -57,10 +66,10 @@ def get_mesure(id):
 
 
 @mesures_bp.route("", methods=["POST"])
-def create_mesure():
+@require_auth
+def create_mesure(current_user):
     body = request.get_json(silent=True) or {}
 
-    # Validate required fields
     errors = []
     if not body.get("id_parcelle"):
         errors.append("id_parcelle est requis")
@@ -70,28 +79,22 @@ def create_mesure():
         errors.append("temperature est requis")
     if "pluie" not in body:
         errors.append("pluie est requis")
-
     if errors:
         return jsonify({"error": "; ".join(errors)}), 400
 
-    # Validate parcelle
     try:
-        parcelle = db.session.get(Parcelle, int(body["id_parcelle"]))
+        parcelle = check_parcelle_ownership(int(body["id_parcelle"]), current_user)
     except (ValueError, TypeError):
         return jsonify({"error": "id_parcelle invalide"}), 400
 
-    if not parcelle:
-        return jsonify({"error": "Parcelle introuvable"}), 404
     if not parcelle.saison_active:
         return jsonify({"error": "La saison de cette parcelle n'est pas active"}), 400
 
-    # Validate date
     try:
         date_prev = datetime.strptime(body["date_prevision"], "%Y-%m-%d").date()
     except (ValueError, TypeError):
         return jsonify({"error": "Format date_prevision invalide (YYYY-MM-DD)"}), 400
 
-    # Validate temperature
     try:
         temp = float(body["temperature"])
         if temp < -50 or temp > 60:
@@ -99,7 +102,6 @@ def create_mesure():
     except (ValueError, TypeError):
         return jsonify({"error": "temperature doit être un nombre"}), 400
 
-    # Validate pluie
     try:
         pluie = float(body["pluie"])
         if pluie < 0:
@@ -107,7 +109,6 @@ def create_mesure():
     except (ValueError, TypeError):
         return jsonify({"error": "pluie doit être un nombre"}), 400
 
-    # Validate humidite
     humidite = body.get("humidite")
     if humidite is not None:
         try:
@@ -129,14 +130,11 @@ def create_mesure():
         db.session.add(mesure)
         db.session.commit()
 
-        # Query the auto-generated besoin_eau (from trigger)
         besoin = BesoinEau.query.filter_by(id_mesure=mesure.id_mesure).first()
-
         return jsonify({
             "data": mesure.to_dict(),
             "besoin_genere": besoin.to_dict() if besoin else None,
         }), 201
-
     except IntegrityError:
         db.session.rollback()
         return jsonify({"error": "Une mesure existe déjà pour cette parcelle à cette date"}), 409
@@ -146,12 +144,10 @@ def create_mesure():
 
 
 @mesures_bp.route("/<int:id>", methods=["PUT"])
-def update_mesure(id):
+@require_auth
+def update_mesure(id, current_user):
     try:
-        mesure = db.session.get(MesureClimatique, id)
-        if not mesure:
-            return jsonify({"error": "Mesure non trouvée"}), 404
-
+        mesure = check_mesure_ownership(id, current_user)
         body = request.get_json(silent=True) or {}
 
         for forbidden in ("id_parcelle", "date_prevision"):
@@ -193,7 +189,6 @@ def update_mesure(id):
 
         db.session.commit()
 
-        # Recalculate besoin_eau (UPDATE doesn't re-fire INSERT trigger)
         parcelle = db.session.get(Parcelle, mesure.id_parcelle)
         if parcelle and parcelle.id_culture and parcelle.saison_active:
             from app.models.culture import Culture
@@ -211,12 +206,10 @@ def update_mesure(id):
 
 
 @mesures_bp.route("/<int:id>", methods=["DELETE"])
-def delete_mesure(id):
+@require_auth
+def delete_mesure(id, current_user):
     try:
-        mesure = db.session.get(MesureClimatique, id)
-        if not mesure:
-            return jsonify({"error": "Mesure non trouvée"}), 404
-
+        mesure = check_mesure_ownership(id, current_user)
         db.session.delete(mesure)
         db.session.commit()
         return jsonify({"message": "Mesure supprimée"})

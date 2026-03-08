@@ -1,12 +1,15 @@
 from functools import wraps
-from flask import jsonify
+from flask import jsonify, abort
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from app.models.agriculteur import Agriculteur
+from app.models.parcelle import Parcelle
+from app.models.mesure_climatique import MesureClimatique
+from app.models.besoin_eau import BesoinEau
+from app.models.stress_hydrique import StressHydrique
 
 
 def require_auth(fn):
-    """Decorator that enforces JWT auth and injects current_user into the route."""
     @wraps(fn)
     @jwt_required()
     def wrapper(*args, **kwargs):
@@ -17,3 +20,36 @@ def require_auth(fn):
         kwargs["current_user"] = user
         return fn(*args, **kwargs)
     return wrapper
+
+
+def check_parcelle_ownership(parcelle_id, current_user):
+    parcelle = db.session.get(Parcelle, parcelle_id)
+    if not parcelle:
+        abort(404, description="Parcelle non trouvée")
+    if parcelle.id_agriculteur != current_user.id_agriculteur:
+        abort(403, description="Accès refusé — cette parcelle ne vous appartient pas")
+    return parcelle
+
+
+def check_mesure_ownership(mesure_id, current_user):
+    mesure = db.session.get(MesureClimatique, mesure_id)
+    if not mesure:
+        abort(404, description="Mesure non trouvée")
+    check_parcelle_ownership(mesure.id_parcelle, current_user)
+    return mesure
+
+
+def check_besoin_ownership(besoin_id, current_user):
+    besoin = db.session.get(BesoinEau, besoin_id)
+    if not besoin:
+        abort(404, description="Besoin non trouvé")
+    check_parcelle_ownership(besoin.id_parcelle, current_user)
+    return besoin
+
+
+def check_stress_ownership(stress_id, current_user):
+    stress = db.session.get(StressHydrique, stress_id)
+    if not stress:
+        abort(404, description="Enregistrement non trouvé")
+    check_parcelle_ownership(stress.id_parcelle, current_user)
+    return stress

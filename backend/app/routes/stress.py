@@ -4,6 +4,7 @@ from app import db
 from app.models.stress_hydrique import StressHydrique, NiveauStress
 from app.models.parcelle import Parcelle
 from app.services.calcul_service import calcul_stress_hydrique
+from app.utils.auth_helpers import require_auth, check_parcelle_ownership, check_stress_ownership
 
 stress_bp = Blueprint("stress", __name__, url_prefix="/api/stress")
 
@@ -11,16 +12,21 @@ VALID_NIVEAUX = {e.value for e in NiveauStress}
 
 
 @stress_bp.route("", methods=["GET"])
-def list_stress():
+@require_auth
+def list_stress(current_user):
     try:
-        query = StressHydrique.query.order_by(StressHydrique.date_calcul.desc())
+        user_parcelle_ids = [p.id_parcelle for p in Parcelle.query.filter_by(id_agriculteur=current_user.id_agriculteur).all()]
+        query = StressHydrique.query.filter(StressHydrique.id_parcelle.in_(user_parcelle_ids)).order_by(StressHydrique.date_calcul.desc())
 
         parcelle_id = request.args.get("parcelle_id")
         if parcelle_id:
             try:
-                query = query.filter_by(id_parcelle=int(parcelle_id))
+                pid = int(parcelle_id)
             except ValueError:
                 return jsonify({"error": "parcelle_id doit être un entier"}), 400
+            if pid not in user_parcelle_ids:
+                return jsonify({"error": "Accès refusé"}), 403
+            query = query.filter_by(id_parcelle=pid)
 
         if request.args.get("alerte_active", "").lower() == "true":
             query = query.filter_by(alerte_active=True)
@@ -38,24 +44,20 @@ def list_stress():
 
 
 @stress_bp.route("/<int:id>", methods=["GET"])
-def get_stress(id):
+@require_auth
+def get_stress(id, current_user):
     try:
-        stress = db.session.get(StressHydrique, id)
-        if not stress:
-            return jsonify({"error": "Enregistrement non trouvé"}), 404
+        stress = check_stress_ownership(id, current_user)
         return jsonify({"data": stress.to_dict()})
     except SQLAlchemyError as e:
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
 @stress_bp.route("/calculer/<int:parcelle_id>", methods=["POST"])
-def simuler_stress(parcelle_id):
-    """Simulation only — does NOT insert into DB."""
+@require_auth
+def simuler_stress(parcelle_id, current_user):
     try:
-        parcelle = db.session.get(Parcelle, parcelle_id)
-        if not parcelle:
-            return jsonify({"error": "Parcelle introuvable"}), 404
-
+        check_parcelle_ownership(parcelle_id, current_user)
         result = calcul_stress_hydrique(parcelle_id)
         return jsonify({"simulation": result})
     except ValueError as e:
@@ -65,12 +67,10 @@ def simuler_stress(parcelle_id):
 
 
 @stress_bp.route("/<int:id>", methods=["DELETE"])
-def delete_stress(id):
+@require_auth
+def delete_stress(id, current_user):
     try:
-        stress = db.session.get(StressHydrique, id)
-        if not stress:
-            return jsonify({"error": "Enregistrement non trouvé"}), 404
-
+        stress = check_stress_ownership(id, current_user)
         db.session.delete(stress)
         db.session.commit()
         return jsonify({"message": "Enregistrement supprimé"})
