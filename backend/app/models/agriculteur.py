@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from werkzeug.security import check_password_hash
 from app import db
 
 
@@ -13,6 +14,9 @@ class Agriculteur(db.Model):
     actif = db.Column(db.Boolean, default=True)
 
     parcelles = db.relationship("Parcelle", back_populates="agriculteur", lazy="dynamic")
+
+    def check_password(self, plain_password):
+        return check_password_hash(self.mot_de_passe, plain_password)
 
     def to_dict(self):
         return {

@@ -5,13 +5,14 @@
 USE smartagri;
 
 -- ============================================================
--- 1. AGRICULTEURS
+-- 1. AGRICULTEURS (2 regular users)
+-- Passwords hashed with werkzeug (placeholder hashes for seeding)
+-- karim: "karim12345"  |  fatima: "fatima12345"
 -- ============================================================
 
 INSERT INTO AGRICULTEUR (nom, mail, mot_de_passe, actif) VALUES
-('Karim Benali',   'karim.benali@mail.com',   'pbkdf2:sha256:600000$placeholder1$abc123hash', TRUE),
-('Fatima Zahra',   'fatima.zahra@mail.com',    'pbkdf2:sha256:600000$placeholder2$def456hash', TRUE),
-('Youssef Amrani', 'youssef.amrani@mail.com',  'pbkdf2:sha256:600000$placeholder3$ghi789hash', TRUE);
+('Karim Benali',  'karim.benali@mail.com',  'pbkdf2:sha256:600000$placeholder1$abc123hash', TRUE),
+('Fatima Zahra',  'fatima.zahra@mail.com',   'pbkdf2:sha256:600000$placeholder2$def456hash', TRUE);
 
 -- ============================================================
 -- 2. CULTURES (realistic besoin_eau_base in mm/day)
@@ -40,37 +41,31 @@ INSERT INTO PARCELLE (id_agriculteur, id_culture, surface, type_de_sol, capacite
 INSERT INTO PARCELLE (id_agriculteur, id_culture, surface, type_de_sol, capacite_eau, latitude, longitude, saison_active, date_debut_saison) VALUES
 (2, 3, 3.00, 'Argile', 200000.00, 34.020882, -6.841650, TRUE, '2026-01-20');
 
--- Parcelle 4: Youssef, no culture yet, inactive
+-- Parcelle 4: Fatima, no culture, inactive
 INSERT INTO PARCELLE (id_agriculteur, id_culture, surface, type_de_sol, capacite_eau, latitude, longitude, saison_active, date_debut_saison) VALUES
-(3, NULL, 1.80, 'Limon', 120000.00, 31.629472, -7.981084, FALSE, NULL);
+(2, NULL, 1.80, 'Limon', 120000.00, 31.629472, -7.981084, FALSE, NULL);
 
 -- ============================================================
 -- 4. MESURES CLIMATIQUES (triggers auto-create BESOIN_EAU)
 -- ============================================================
 
--- Parcelle 1 (Blé/Sable) — hot & dry day
 INSERT INTO MESURE_CLIMATIQUE (id_parcelle, date_prevision, temperature, pluie, humidite, source_api) VALUES
 (1, '2026-03-05', 36.50, 0.00, 25.00, 'OpenMeteo');
 
--- Parcelle 1 — mild with some rain
 INSERT INTO MESURE_CLIMATIQUE (id_parcelle, date_prevision, temperature, pluie, humidite, source_api) VALUES
 (1, '2026-03-06', 27.00, 3.20, 45.00, 'OpenMeteo');
 
--- Parcelle 2 (Tomate/Limon) — warm
 INSERT INTO MESURE_CLIMATIQUE (id_parcelle, date_prevision, temperature, pluie, humidite, source_api) VALUES
 (2, '2026-03-05', 30.00, 1.50, 40.00, 'OpenMeteo');
 
--- Parcelle 3 (Maïs/Argile) — very hot
 INSERT INTO MESURE_CLIMATIQUE (id_parcelle, date_prevision, temperature, pluie, humidite, source_api) VALUES
 (3, '2026-03-05', 38.00, 0.00, 20.00, 'OpenMeteo');
 
--- Parcelle 3 — rainy day
 INSERT INTO MESURE_CLIMATIQUE (id_parcelle, date_prevision, temperature, pluie, humidite, source_api) VALUES
 (3, '2026-03-06', 22.00, 12.50, 70.00, 'OpenMeteo');
 
 -- ============================================================
--- 5. STRESS HYDRIQUE (manual record for a closed-season scenario)
---    trg_alerte_stress will auto-set niveau_stress and alerte_active
+-- 5. STRESS HYDRIQUE (manual record)
 -- ============================================================
 
 INSERT INTO STRESS_HYDRIQUE (
