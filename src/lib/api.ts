@@ -1,3 +1,5 @@
+import { useAuthStore } from "./stores";
+
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 export interface ApiResponse<T = unknown> {
@@ -11,20 +13,85 @@ export interface ApiResponse<T = unknown> {
   simulation?: unknown;
   besoin_genere?: unknown;
   fieldErrors?: Record<string, string>;
+  access_token?: string;
+  refresh_token?: string;
+  user?: unknown;
+}
+
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
+async function tryRefresh(): Promise<boolean> {
+  if (isRefreshing && refreshPromise) return refreshPromise;
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    const rt = useAuthStore.getState().refreshToken;
+    if (!rt) return false;
+    try {
+      const res = await fetch(`${BASE_URL}/auth/refresh`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${rt}`,
+        },
+      });
+      if (!res.ok) return false;
+      const json = await res.json();
+      if (json.access_token) {
+        useAuthStore.getState().setAccessToken(json.access_token);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  })();
+  return refreshPromise;
 }
 
 async function apiFetch<T = unknown>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  _isRetry = false
 ): Promise<ApiResponse<T>> {
   try {
     const url = `${BASE_URL}${path}`;
-    const res = await fetch(url, {
-      headers: { "Content-Type": "application/json", ...options.headers },
-      ...options,
-    });
+    const token = useAuthStore.getState().accessToken;
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...(options.headers as Record<string, string>),
+    };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const res = await fetch(url, { ...options, headers });
     const json = await res.json().catch(() => ({}));
+
     if (!res.ok) {
+      // 401 → try refresh (except for auth endpoints themselves)
+      if (
+        res.status === 401 &&
+        !_isRetry &&
+        !path.startsWith("/auth/login") &&
+        !path.startsWith("/auth/signup") &&
+        !path.startsWith("/auth/refresh")
+      ) {
+        const refreshed = await tryRefresh();
+        if (refreshed) {
+          return apiFetch<T>(path, options, true);
+        }
+        // refresh failed → logout
+        useAuthStore.getState().logout();
+        return { error: "Session expirée" };
+      }
+
+      if (res.status === 403) {
+        // Don't redirect, just return the error
+        return { error: json.error || "Accès refusé" };
+      }
+
       if (res.status === 422 && json.errors) {
         return { error: json.error || "Erreur de validation", fieldErrors: json.errors };
       }
@@ -43,13 +110,27 @@ function qs(params?: Record<string, string | number | boolean | undefined>): str
   return "?" + new URLSearchParams(entries.map(([k, v]) => [k, String(v)])).toString();
 }
 
-export const agriculteurs = {
-  getAll: (params?: Record<string, string>) => apiFetch(`/agriculteurs${qs(params)}`),
-  getById: (id: number) => apiFetch(`/agriculteurs/${id}`),
-  create: (data: Record<string, unknown>) => apiFetch("/agriculteurs", { method: "POST", body: JSON.stringify(data) }),
-  update: (id: number, data: Record<string, unknown>) => apiFetch(`/agriculteurs/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  deactivate: (id: number) => apiFetch(`/agriculteurs/${id}`, { method: "DELETE" }),
+// ── Auth ──
+
+export const auth = {
+  signup: (data: { nom: string; mail: string; mot_de_passe: string }) =>
+    apiFetch("/auth/signup", { method: "POST", body: JSON.stringify(data) }),
+  login: (data: { mail: string; mot_de_passe: string }) =>
+    apiFetch("/auth/login", { method: "POST", body: JSON.stringify(data) }),
+  refresh: (refreshToken: string) =>
+    apiFetch("/auth/refresh", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${refreshToken}` },
+    }),
+  logout: () => apiFetch("/auth/logout", { method: "POST" }),
+  me: () => apiFetch("/auth/me"),
+  updateProfile: (data: Record<string, unknown>) =>
+    apiFetch("/auth/me", { method: "PUT", body: JSON.stringify(data) }),
+  changePassword: (data: { ancien_mot_de_passe: string; nouveau_mot_de_passe: string; confirmation: string }) =>
+    apiFetch("/auth/change-password", { method: "PUT", body: JSON.stringify(data) }),
 };
+
+// ── Resources ──
 
 export const cultures = {
   getAll: (params?: Record<string, string>) => apiFetch(`/cultures${qs(params)}`),
@@ -93,4 +174,10 @@ export const stress = {
   getById: (id: number) => apiFetch(`/stress/${id}`),
   simuler: (parcelleId: number) => apiFetch(`/stress/calculer/${parcelleId}`, { method: "POST" }),
   delete: (id: number) => apiFetch(`/stress/${id}`, { method: "DELETE" }),
+};
+
+// Legacy named export for backward compat
+export const agriculteurs = {
+  getAll: () => apiFetch("/agriculteurs"),
+  getById: (id: number) => apiFetch(`/agriculteurs/${id}`),
 };
