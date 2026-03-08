@@ -33,6 +33,7 @@ export default function ProfilePage() {
   const handleUpdateProfile = async () => {
     setEditError("");
     try {
+      const result = await updateProfileMutation.mutateAsync(editForm);
       const u = result as unknown as AuthUser;
       setUser(u);
       notify("success", "Profil mis à jour");
