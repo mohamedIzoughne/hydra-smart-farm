@@ -11,6 +11,16 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    proxy: {
+      // Proxy every /api/* request to the local Flask backend.
+      // This eliminates CORS in dev because the browser only sees localhost:8080.
+      "/api": {
+        target: "http://localhost:5000",
+        changeOrigin: true,
+        // Strip /api prefix if your Flask blueprints already include /api in url_prefix.
+        // Set rewrite to (path) => path if your Flask routes start with /api (they do — keep as-is).
+      },
+    },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {

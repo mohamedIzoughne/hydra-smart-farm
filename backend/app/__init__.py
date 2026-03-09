@@ -16,7 +16,17 @@ def create_app(config_class="config.Config"):
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
-    CORS(app, origins=app.config.get("CORS_ORIGINS", "*"))
+
+    # Explicit CORS setup — required for JWT Bearer token to flow from
+    # the Vite dev server (localhost:8080) to the Flask API (localhost:5000).
+    CORS(
+        app,
+        origins=app.config.get("CORS_ORIGINS", "http://localhost:8080"),
+        supports_credentials=app.config.get("CORS_SUPPORTS_CREDENTIALS", True),
+        allow_headers=["Content-Type", "Authorization"],
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        expose_headers=["Authorization"],
+    )
 
     # Import models so Alembic sees them
     from app import models  # noqa: F401

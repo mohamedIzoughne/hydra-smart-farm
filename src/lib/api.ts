@@ -4,7 +4,8 @@ import {
   DEMO_MESURES, DEMO_BESOINS, DEMO_STRESS, filterByParcelle,
 } from "./demo-data";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+// Use relative /api URL to leverage Vite proxy in development.
+const BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 export interface ApiResponse<T = unknown> {
   data?: T;

@@ -1,0 +1,29 @@
+services:
+  # ── MySQL 8 ──────────────────────────────────────────────────
+  db:
+    image: mysql:8.0
+    container_name: smartagri_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-smartagri}
+      MYSQL_USER: ${MYSQL_USER:-agriuser}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-agripassword}
+    ports:
+      # host:container  — your local Flask app connects via localhost:3306
+      - "3306:3306"
+    volumes:
+      # Named volume persists data between container restarts
+      - smartagri_mysql_data:/var/lib/mysql
+      # Auto-runs db_init.sql + seed.sql on first boot (alphabetical order)
+      - ./backend/db_init.sql:/docker-entrypoint-initdb.d/01_db_init.sql:ro
+      - ./backend/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  smartagri_mysql_data:
