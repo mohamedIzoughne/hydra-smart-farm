@@ -1,4 +1,6 @@
-import React, { useEffect, useRef } from "react";
+import * as React from "react";
+import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
 
@@ -21,12 +23,15 @@ export function Modal({ open, onClose, title, size = "md", children, footer }: M
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", handler);
     document.body.style.overflow = "hidden";
-    return () => { document.removeEventListener("keydown", handler); document.body.style.overflow = ""; };
+    return () => {
+      document.removeEventListener("keydown", handler);
+      document.body.style.overflow = "";
+    };
   }, [open, onClose]);
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div
       ref={overlayRef}
       className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 backdrop-blur-md animate-fade-in"
@@ -52,6 +57,7 @@ export function Modal({ open, onClose, title, size = "md", children, footer }: M
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

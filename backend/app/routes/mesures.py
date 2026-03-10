@@ -7,6 +7,8 @@ from app.models.parcelle import Parcelle
 from app.models.besoin_eau import BesoinEau
 from app.services.calcul_service import calcul_volume_besoin
 from app.utils.auth_helpers import require_auth, check_parcelle_ownership, check_mesure_ownership
+from app.utils.security import validate_schema
+from app.schemas import MesureCreateSchema, MesureUpdateSchema
 
 mesures_bp = Blueprint("mesures", __name__, url_prefix="/api/mesures")
 
@@ -67,23 +69,10 @@ def get_mesure(id, current_user):
 
 @mesures_bp.route("", methods=["POST"])
 @require_auth
-def create_mesure(current_user):
-    body = request.get_json(silent=True) or {}
-
-    errors = []
-    if not body.get("id_parcelle"):
-        errors.append("id_parcelle est requis")
-    if not body.get("date_prevision"):
-        errors.append("date_prevision est requis")
-    if "temperature" not in body:
-        errors.append("temperature est requis")
-    if "pluie" not in body:
-        errors.append("pluie est requis")
-    if errors:
-        return jsonify({"error": "; ".join(errors)}), 400
-
+@validate_schema(MesureCreateSchema)
+def create_mesure(current_user, validated_data):
     try:
-        parcelle = check_parcelle_ownership(int(body["id_parcelle"]), current_user)
+        parcelle = check_parcelle_ownership(validated_data.id_parcelle, current_user)
     except (ValueError, TypeError):
         return jsonify({"error": "id_parcelle invalide"}), 400
 
@@ -91,41 +80,13 @@ def create_mesure(current_user):
         return jsonify({"error": "La saison de cette parcelle n'est pas active"}), 400
 
     try:
-        date_prev = datetime.strptime(body["date_prevision"], "%Y-%m-%d").date()
-    except (ValueError, TypeError):
-        return jsonify({"error": "Format date_prevision invalide (YYYY-MM-DD)"}), 400
-
-    try:
-        temp = float(body["temperature"])
-        if temp < -50 or temp > 60:
-            return jsonify({"error": "temperature doit être entre -50 et 60"}), 400
-    except (ValueError, TypeError):
-        return jsonify({"error": "temperature doit être un nombre"}), 400
-
-    try:
-        pluie = float(body["pluie"])
-        if pluie < 0:
-            return jsonify({"error": "pluie doit être >= 0"}), 400
-    except (ValueError, TypeError):
-        return jsonify({"error": "pluie doit être un nombre"}), 400
-
-    humidite = body.get("humidite")
-    if humidite is not None:
-        try:
-            humidite = float(humidite)
-            if humidite < 0 or humidite > 100:
-                return jsonify({"error": "humidite doit être entre 0 et 100"}), 400
-        except (ValueError, TypeError):
-            return jsonify({"error": "humidite doit être un nombre"}), 400
-
-    try:
         mesure = MesureClimatique(
             id_parcelle=parcelle.id_parcelle,
-            date_prevision=date_prev,
-            temperature=temp,
-            pluie=pluie,
-            humidite=humidite,
-            source_api=body.get("source_api", "OpenMeteo"),
+            date_prevision=validated_data.date_prevision,
+            temperature=validated_data.temperature,
+            pluie=validated_data.pluie,
+            humidite=validated_data.humidite,
+            source_api=validated_data.source_api,
         )
         db.session.add(mesure)
         db.session.commit()
@@ -145,47 +106,22 @@ def create_mesure(current_user):
 
 @mesures_bp.route("/<int:id>", methods=["PUT"])
 @require_auth
-def update_mesure(id, current_user):
+@validate_schema(MesureUpdateSchema)
+def update_mesure(id, current_user, validated_data):
     try:
         mesure = check_mesure_ownership(id, current_user)
-        body = request.get_json(silent=True) or {}
 
-        for forbidden in ("id_parcelle", "date_prevision"):
-            if forbidden in body:
-                return jsonify({"error": f"'{forbidden}' ne peut pas être modifié"}), 400
+        if validated_data.temperature is not None:
+            mesure.temperature = validated_data.temperature
 
-        if "temperature" in body:
-            try:
-                temp = float(body["temperature"])
-                if temp < -50 or temp > 60:
-                    return jsonify({"error": "temperature doit être entre -50 et 60"}), 400
-                mesure.temperature = temp
-            except (ValueError, TypeError):
-                return jsonify({"error": "temperature doit être un nombre"}), 400
+        if validated_data.pluie is not None:
+            mesure.pluie = validated_data.pluie
 
-        if "pluie" in body:
-            try:
-                pluie = float(body["pluie"])
-                if pluie < 0:
-                    return jsonify({"error": "pluie doit être >= 0"}), 400
-                mesure.pluie = pluie
-            except (ValueError, TypeError):
-                return jsonify({"error": "pluie doit être un nombre"}), 400
+        if validated_data.humidite is not None:
+            mesure.humidite = validated_data.humidite
 
-        if "humidite" in body:
-            if body["humidite"] is None:
-                mesure.humidite = None
-            else:
-                try:
-                    h = float(body["humidite"])
-                    if h < 0 or h > 100:
-                        return jsonify({"error": "humidite doit être entre 0 et 100"}), 400
-                    mesure.humidite = h
-                except (ValueError, TypeError):
-                    return jsonify({"error": "humidite doit être un nombre"}), 400
-
-        if "source_api" in body:
-            mesure.source_api = body["source_api"]
+        if validated_data.source_api is not None:
+            mesure.source_api = validated_data.source_api
 
         db.session.commit()
 

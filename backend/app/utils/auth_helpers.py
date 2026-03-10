@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import jsonify, abort
+from flask import jsonify, abort, current_app, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from app.models.agriculteur import Agriculteur
@@ -14,9 +14,19 @@ def require_auth(fn):
     @jwt_required()
     def wrapper(*args, **kwargs):
         identity = get_jwt_identity()
-        user = db.session.get(Agriculteur, identity["id"])
+        try:
+            # Identity is stored as a string ID in the JWT
+            user_id = int(identity)
+            user = db.session.get(Agriculteur, user_id)
+        except (ValueError, TypeError) as e:
+            current_app.logger.error(f"Invalid identity format in JWT: {identity}. Error: {e}")
+            return jsonify({"error": "Jeton malformé (identité invalide)"}), 422
+
         if not user or not user.actif:
+            current_app.logger.warning(f"Auth failed for user ID {identity}: Not found or inactive")
             return jsonify({"error": "Utilisateur non trouvé ou désactivé"}), 401
+        
+        current_app.logger.info(f"User {user.mail} accessed {request.path}")
         kwargs["current_user"] = user
         return fn(*args, **kwargs)
     return wrapper

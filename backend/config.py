@@ -27,3 +27,6 @@ class Config:
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", os.getenv("SECRET_KEY", "jwt-change-me"))
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=15)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=7)
+
+    # ── Tasks ────────────────────────────────────────────────────
+    SCHEDULER_API_ENABLED = True

@@ -4,6 +4,8 @@ from app import db
 from app.models.culture import Culture
 from app.models.parcelle import Parcelle
 from app.utils.auth_helpers import require_auth
+from app.utils.security import validate_schema
+from app.schemas import CultureBaseSchema, CultureUpdateSchema
 
 cultures_bp = Blueprint("cultures", __name__, url_prefix="/api/cultures")
 
@@ -38,50 +40,14 @@ def get_culture(id, current_user):
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
-def _validate_culture_fields(body, is_create=False):
-    errors = []
-    data = {}
-    if is_create:
-        for field in ("nom_culture", "besoin_eau_base", "seuil_stress_hyd"):
-            if field not in body or body[field] is None:
-                errors.append(f"{field} est requis")
-    if "nom_culture" in body:
-        nom = (body["nom_culture"] or "").strip()
-        if not nom or len(nom) > 80:
-            errors.append("nom_culture invalide (1-80 caractères)")
-        data["nom_culture"] = nom
-    if "besoin_eau_base" in body:
-        try:
-            val = float(body["besoin_eau_base"])
-            if val <= 0:
-                errors.append("besoin_eau_base doit être > 0")
-            data["besoin_eau_base"] = val
-        except (ValueError, TypeError):
-            errors.append("besoin_eau_base doit être un nombre")
-    if "seuil_stress_hyd" in body:
-        try:
-            val = float(body["seuil_stress_hyd"])
-            if val < 0 or val > 100:
-                errors.append("seuil_stress_hyd doit être entre 0 et 100")
-            data["seuil_stress_hyd"] = val
-        except (ValueError, TypeError):
-            errors.append("seuil_stress_hyd doit être un nombre")
-    for coeff in ("coeff_sol_sable", "coeff_sol_limon", "coeff_sol_argile"):
-        if coeff in body:
-            try:
-                data[coeff] = float(body[coeff])
-            except (ValueError, TypeError):
-                errors.append(f"{coeff} doit être un nombre")
-    return errors, data
+
 
 
 @cultures_bp.route("", methods=["POST"])
 @require_auth
-def create_culture(current_user):
-    body = request.get_json(silent=True) or {}
-    errors, data = _validate_culture_fields(body, is_create=True)
-    if errors:
-        return jsonify({"error": "; ".join(errors)}), 400
+@validate_schema(CultureBaseSchema)
+def create_culture(current_user, validated_data):
+    data = validated_data.model_dump()
     try:
         if Culture.query.filter_by(nom_culture=data["nom_culture"]).first():
             return jsonify({"error": "Cette culture existe déjà"}), 409
@@ -96,15 +62,13 @@ def create_culture(current_user):
 
 @cultures_bp.route("/<int:id>", methods=["PUT"])
 @require_auth
-def update_culture(id, current_user):
+@validate_schema(CultureUpdateSchema)
+def update_culture(id, current_user, validated_data):
     try:
         culture = db.session.get(Culture, id)
         if not culture:
             return jsonify({"error": "Culture non trouvée"}), 404
-        body = request.get_json(silent=True) or {}
-        errors, data = _validate_culture_fields(body, is_create=False)
-        if errors:
-            return jsonify({"error": "; ".join(errors)}), 400
+        data = validated_data.model_dump(exclude_unset=True)
         if "nom_culture" in data:
             existing = Culture.query.filter(Culture.nom_culture == data["nom_culture"], Culture.id_culture != id).first()
             if existing:

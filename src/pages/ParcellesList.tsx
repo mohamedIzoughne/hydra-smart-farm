@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import * as React from "react";
+import { useState } from "react";
 import { useParcelles, useCultures, useCreateParcelle, useDeleteParcelle } from "@/hooks/useApi";
 import { useNotificationStore } from "@/lib/stores";
 import { DataTable, type Column } from "@/components/smart/DataTable";
@@ -206,8 +207,34 @@ export default function ParcellesList() {
             <FormField label="Capacité eau (L)" required><input type="number" step="0.01" min="0" className="field-input" value={form.capacite_eau} onChange={(e) => setForm({ ...form, capacite_eau: e.target.value })} /></FormField>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <FormField label="Latitude"><input type="number" step="0.000001" className="field-input" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: e.target.value })} /></FormField>
-            <FormField label="Longitude"><input type="number" step="0.000001" className="field-input" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: e.target.value })} /></FormField>
+            <FormField label="Latitude">
+              <div className="relative">
+                <input type="number" step="0.00000001" className="field-input pr-20" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: e.target.value })} />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const id = notify("info", "Veuillez autoriser l'accès GPS...");
+                    navigator.geolocation.getCurrentPosition(
+                      (pos) => {
+                        setForm({
+                          ...form,
+                          latitude: pos.coords.latitude.toFixed(8),
+                          longitude: pos.coords.longitude.toFixed(8)
+                        });
+                        notify("success", "Position détectée");
+                      },
+                      (err) => notify("error", "Géolocalisation échouée: " + err.message)
+                    );
+                  }}
+                  className="absolute right-2 top-1.5 px-2 py-1 bg-primary text-primary-foreground text-[10px] font-bold rounded uppercase hover:bg-primary/90"
+                >
+                  Détecter
+                </button>
+              </div>
+            </FormField>
+            <FormField label="Longitude">
+              <input type="number" step="0.00000001" className="field-input" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: e.target.value })} />
+            </FormField>
           </div>
         </div>
       </Modal>

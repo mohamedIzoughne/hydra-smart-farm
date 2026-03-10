@@ -9,7 +9,7 @@ USE smartagri;
 -- 1. TABLES (dependency order)
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS AGRICULTEUR (
+CREATE TABLE IF NOT EXISTS agriculteur (
     id_agriculteur  INT             AUTO_INCREMENT PRIMARY KEY,
     nom             VARCHAR(100)    NOT NULL,
     mail            VARCHAR(150)    NOT NULL,
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS AGRICULTEUR (
     CONSTRAINT uq_agriculteur_mail UNIQUE (mail)
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS CULTURE (
+CREATE TABLE IF NOT EXISTS culture (
     id_culture      INT             AUTO_INCREMENT PRIMARY KEY,
     nom_culture     VARCHAR(80)     NOT NULL,
     besoin_eau_base DECIMAL(8,2)    NOT NULL,
@@ -32,28 +32,28 @@ CREATE TABLE IF NOT EXISTS CULTURE (
     CONSTRAINT ck_culture_seuil_range CHECK (seuil_stress_hyd >= 0 AND seuil_stress_hyd <= 100)
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS PARCELLE (
+CREATE TABLE IF NOT EXISTS parcelle (
     id_parcelle     INT             AUTO_INCREMENT PRIMARY KEY,
     id_agriculteur  INT             NOT NULL,
     id_culture      INT             NULL,
     surface         DECIMAL(10,2)   NOT NULL,
     type_de_sol     ENUM('Sable','Limon','Argile') NOT NULL,
     capacite_eau    DECIMAL(10,2)   NOT NULL,
-    latitude        DECIMAL(9,6)    NULL,
-    longitude       DECIMAL(9,6)    NULL,
+    latitude        DECIMAL(11,8)    NULL,
+    longitude       DECIMAL(11,8)    NULL,
     saison_active   BOOLEAN         DEFAULT FALSE,
     date_debut_saison DATE          NULL,
     CONSTRAINT ck_parcelle_surface_pos  CHECK (surface > 0),
     CONSTRAINT ck_parcelle_capacite_pos CHECK (capacite_eau > 0),
     CONSTRAINT fk_parcelle_agriculteur
-        FOREIGN KEY (id_agriculteur) REFERENCES AGRICULTEUR(id_agriculteur)
+        FOREIGN KEY (id_agriculteur) REFERENCES agriculteur(id_agriculteur)
         ON DELETE RESTRICT,
     CONSTRAINT fk_parcelle_culture
-        FOREIGN KEY (id_culture) REFERENCES CULTURE(id_culture)
+        FOREIGN KEY (id_culture) REFERENCES culture(id_culture)
         ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS MESURE_CLIMATIQUE (
+CREATE TABLE IF NOT EXISTS mesure_climatique (
     id_mesure       INT             AUTO_INCREMENT PRIMARY KEY,
     id_parcelle     INT             NOT NULL,
     date_prevision  DATE            NOT NULL,
@@ -66,11 +66,11 @@ CREATE TABLE IF NOT EXISTS MESURE_CLIMATIQUE (
     CONSTRAINT ck_mesure_humidite   CHECK (humidite IS NULL OR (humidite >= 0 AND humidite <= 100)),
     CONSTRAINT uq_mesure_parcelle_date UNIQUE (id_parcelle, date_prevision),
     CONSTRAINT fk_mesure_parcelle
-        FOREIGN KEY (id_parcelle) REFERENCES PARCELLE(id_parcelle)
+        FOREIGN KEY (id_parcelle) REFERENCES parcelle(id_parcelle)
         ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS BESOIN_EAU (
+CREATE TABLE IF NOT EXISTS besoin_eau (
     id_besoin           INT             AUTO_INCREMENT PRIMARY KEY,
     id_parcelle         INT             NOT NULL,
     id_mesure           INT             NOT NULL,
@@ -80,14 +80,14 @@ CREATE TABLE IF NOT EXISTS BESOIN_EAU (
     genere_par          ENUM('Système','Manuel') DEFAULT 'Système',
     CONSTRAINT uq_besoin_parcelle_date UNIQUE (id_parcelle, date_besoin),
     CONSTRAINT fk_besoin_parcelle
-        FOREIGN KEY (id_parcelle) REFERENCES PARCELLE(id_parcelle)
+        FOREIGN KEY (id_parcelle) REFERENCES parcelle(id_parcelle)
         ON DELETE CASCADE,
     CONSTRAINT fk_besoin_mesure
-        FOREIGN KEY (id_mesure) REFERENCES MESURE_CLIMATIQUE(id_mesure)
+        FOREIGN KEY (id_mesure) REFERENCES mesure_climatique(id_mesure)
         ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS STRESS_HYDRIQUE (
+CREATE TABLE IF NOT EXISTS stress_hydrique (
     id_stress           INT             AUTO_INCREMENT PRIMARY KEY,
     id_parcelle         INT             NOT NULL,
     date_calcul         DATE            NOT NULL DEFAULT (CURDATE()),
@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS STRESS_HYDRIQUE (
     recommandation      TEXT            NULL,
     cultures_suggere    TEXT            NULL,
     CONSTRAINT fk_stress_parcelle
-        FOREIGN KEY (id_parcelle) REFERENCES PARCELLE(id_parcelle)
+        FOREIGN KEY (id_parcelle) REFERENCES parcelle(id_parcelle)
         ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
@@ -107,11 +107,11 @@ CREATE TABLE IF NOT EXISTS STRESS_HYDRIQUE (
 -- 2. PERFORMANCE INDEXES
 -- ============================================================
 
-CREATE INDEX idx_parcelle_agri      ON PARCELLE(id_agriculteur);
-CREATE INDEX idx_parcelle_saison    ON PARCELLE(saison_active);
-CREATE INDEX idx_mesure_parc_date   ON MESURE_CLIMATIQUE(id_parcelle, date_prevision DESC);
-CREATE INDEX idx_besoin_parc_date   ON BESOIN_EAU(id_parcelle, date_besoin DESC);
-CREATE INDEX idx_culture_besoin     ON CULTURE(besoin_eau_base ASC);
+CREATE INDEX idx_parcelle_agri      ON parcelle(id_agriculteur);
+CREATE INDEX idx_parcelle_saison    ON parcelle(saison_active);
+CREATE INDEX idx_mesure_parc_date   ON mesure_climatique(id_parcelle, date_prevision DESC);
+CREATE INDEX idx_besoin_parc_date   ON besoin_eau(id_parcelle, date_besoin DESC);
+CREATE INDEX idx_culture_besoin     ON culture(besoin_eau_base ASC);
 
 -- ============================================================
 -- 3. STORED PROCEDURES
@@ -129,8 +129,8 @@ BEGIN
     SELECT capacite_eau,
            DATEDIFF(CURDATE(), date_debut_saison),
            id_culture
-      INTO v_capacite_eau, v_duree_saison, v_id_culture
-      FROM PARCELLE
+       INTO v_capacite_eau, v_duree_saison, v_id_culture
+       FROM parcelle
      WHERE id_parcelle = p_id_parcelle;
 
     IF v_duree_saison IS NULL OR v_duree_saison <= 0 THEN
@@ -138,7 +138,7 @@ BEGIN
     END IF;
 
     SELECT GROUP_CONCAT(nom_culture ORDER BY besoin_eau_base ASC SEPARATOR ', ')
-      FROM CULTURE
+       FROM culture
      WHERE besoin_eau_base * v_duree_saison < v_capacite_eau
        AND id_culture != COALESCE(v_id_culture, 0);
 END //
@@ -158,24 +158,24 @@ BEGIN
 
     -- Read parcelle info
     SELECT capacite_eau, date_debut_saison, id_culture
-      INTO v_capacite, v_date_debut, v_id_culture
-      FROM PARCELLE
+       INTO v_capacite, v_date_debut, v_id_culture
+       FROM parcelle
      WHERE id_parcelle = p_id_parcelle;
 
     -- Aggregate recommended volume for the season
     SELECT COALESCE(SUM(volume_recommande), 0)
-      INTO v_besoin_total
-      FROM BESOIN_EAU
+       INTO v_besoin_total
+       FROM besoin_eau
      WHERE id_parcelle = p_id_parcelle
-       AND date_besoin >= v_date_debut;
+        AND date_besoin >= v_date_debut;
 
     -- Compute deficit
     SET v_deficit = GREATEST(v_besoin_total - v_capacite, 0);
 
     -- Read stress threshold from culture
     SELECT COALESCE(seuil_stress_hyd, 50)
-      INTO v_seuil_pct
-      FROM CULTURE
+       INTO v_seuil_pct
+       FROM culture
      WHERE id_culture = v_id_culture;
 
     SET v_seuil_abs = v_capacite * (v_seuil_pct / 100);
@@ -184,8 +184,8 @@ BEGIN
     IF v_deficit > v_seuil_abs THEN
         -- Get suggested cultures
         SELECT GROUP_CONCAT(nom_culture ORDER BY besoin_eau_base ASC SEPARATOR ', ')
-          INTO v_suggestions
-          FROM CULTURE
+           INTO v_suggestions
+           FROM culture
          WHERE besoin_eau_base * GREATEST(DATEDIFF(CURDATE(), v_date_debut), 1) < v_capacite
            AND id_culture != COALESCE(v_id_culture, 0);
 
@@ -197,7 +197,7 @@ BEGIN
     END IF;
 
     -- Insert stress record (trg_alerte_stress will set niveau_stress and alerte_active)
-    INSERT INTO STRESS_HYDRIQUE (
+    INSERT INTO stress_hydrique (
         id_parcelle, date_calcul, niveau_stress,
         besoin_total_saison, capacite_source, deficit_calcule,
         alerte_active, recommandation, cultures_suggere
@@ -218,7 +218,7 @@ DELIMITER //
 
 -- trg_ouverture_saison: validate culture before activating season
 CREATE TRIGGER trg_ouverture_saison
-BEFORE UPDATE ON PARCELLE
+BEFORE UPDATE ON parcelle
 FOR EACH ROW
 BEGIN
     IF OLD.saison_active = FALSE AND NEW.saison_active = TRUE THEN
@@ -234,7 +234,7 @@ END //
 
 -- trg_calcul_besoin_eau: auto-calculate water needs on new weather data
 CREATE TRIGGER trg_calcul_besoin_eau
-AFTER INSERT ON MESURE_CLIMATIQUE
+AFTER INSERT ON mesure_climatique
 FOR EACH ROW
 BEGIN
     DECLARE v_surface       DECIMAL(10,2);
@@ -253,10 +253,10 @@ BEGIN
     -- Read parcelle + culture info
     SELECT p.surface, p.type_de_sol, p.saison_active, p.id_culture,
            c.besoin_eau_base, c.coeff_sol_sable, c.coeff_sol_limon, c.coeff_sol_argile
-      INTO v_surface, v_type_sol, v_saison_active, v_id_culture,
+       INTO v_surface, v_type_sol, v_saison_active, v_id_culture,
            v_besoin_base, v_coeff_sable, v_coeff_limon, v_coeff_argile
-      FROM PARCELLE p
-      LEFT JOIN CULTURE c ON p.id_culture = c.id_culture
+       FROM parcelle p
+      LEFT JOIN culture c ON p.id_culture = c.id_culture
      WHERE p.id_parcelle = NEW.id_parcelle;
 
     -- Only compute if season is active and culture exists
@@ -284,7 +284,7 @@ BEGIN
         SET v_volume = v_besoin_brut * v_surface * 10000;
 
         -- Insert (ignore duplicate parcelle+date)
-        INSERT IGNORE INTO BESOIN_EAU (
+        INSERT IGNORE INTO besoin_eau (
             id_parcelle, id_mesure, date_besoin,
             volume_recommande, genere_par
         ) VALUES (
@@ -297,7 +297,7 @@ END //
 
 -- trg_fin_saison: audit when season is deactivated
 CREATE TRIGGER trg_fin_saison
-AFTER UPDATE ON PARCELLE
+AFTER UPDATE ON parcelle
 FOR EACH ROW
 BEGIN
     IF OLD.saison_active = TRUE AND NEW.saison_active = FALSE THEN
@@ -309,7 +309,7 @@ END //
 
 -- trg_alerte_stress: auto-compute stress level before insert
 CREATE TRIGGER trg_alerte_stress
-BEFORE INSERT ON STRESS_HYDRIQUE
+BEFORE INSERT ON stress_hydrique
 FOR EACH ROW
 BEGIN
     DECLARE v_seuil_pct     DECIMAL(5,2);
@@ -319,9 +319,9 @@ BEGIN
 
     -- Get threshold from culture via parcelle
     SELECT COALESCE(c.seuil_stress_hyd, 50), p.capacite_eau
-      INTO v_seuil_pct, v_capacite
-      FROM PARCELLE p
-      LEFT JOIN CULTURE c ON p.id_culture = c.id_culture
+       INTO v_seuil_pct, v_capacite
+       FROM parcelle p
+      LEFT JOIN culture c ON p.id_culture = c.id_culture
      WHERE p.id_parcelle = NEW.id_parcelle;
 
     SET v_seuil_abs = NEW.capacite_source * (v_seuil_pct / 100);

@@ -8,28 +8,20 @@ from flask_jwt_extended import (
 )
 from app import db
 from app.models.agriculteur import Agriculteur
+from app.utils.security import limiter, validate_schema
+from app.schemas import SignupSchema, LoginSchema, PasswordChangeSchema
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
-
-EMAIL_RE = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
 
 
 # ── SIGNUP ───────────────────────────────────────────────────
 @auth_bp.route("/signup", methods=["POST"])
-def signup():
-    body = request.get_json(silent=True) or {}
-    nom = (body.get("nom") or "").strip()
-    mail = (body.get("mail") or "").strip()
-    mot_de_passe = body.get("mot_de_passe") or ""
-
-    if not nom or not mail or not mot_de_passe:
-        return jsonify({"error": "Les champs nom, mail et mot_de_passe sont requis"}), 400
-    if len(nom) > 100:
-        return jsonify({"error": "Le nom ne doit pas dépasser 100 caractères"}), 400
-    if len(mail) > 150 or not EMAIL_RE.match(mail):
-        return jsonify({"error": "Adresse mail invalide"}), 400
-    if len(mot_de_passe) < 8:
-        return jsonify({"error": "Le mot de passe doit contenir au moins 8 caractères"}), 400
+@limiter.limit("5 per minute")
+@validate_schema(SignupSchema)
+def signup(validated_data):
+    mail = validated_data.mail
+    nom = validated_data.nom
+    mot_de_passe = validated_data.mot_de_passe
 
     try:
         if Agriculteur.query.filter_by(mail=mail).first():
@@ -43,7 +35,7 @@ def signup():
         db.session.add(agri)
         db.session.commit()
 
-        identity = {"id": agri.id_agriculteur}
+        identity = str(agri.id_agriculteur)
         return jsonify({
             "access_token": create_access_token(identity=identity),
             "refresh_token": create_refresh_token(identity=identity),
@@ -56,20 +48,18 @@ def signup():
 
 # ── LOGIN ────────────────────────────────────────────────────
 @auth_bp.route("/login", methods=["POST"])
-def login():
-    body = request.get_json(silent=True) or {}
-    mail = (body.get("mail") or "").strip()
-    mot_de_passe = body.get("mot_de_passe") or ""
-
-    if not mail or not mot_de_passe:
-        return jsonify({"error": "Les champs mail et mot_de_passe sont requis"}), 400
+@limiter.limit("5 per minute")
+@validate_schema(LoginSchema)
+def login(validated_data):
+    mail = validated_data.mail
+    mot_de_passe = validated_data.mot_de_passe
 
     try:
         agri = Agriculteur.query.filter_by(mail=mail).first()
         if not agri or not agri.actif or not agri.check_password(mot_de_passe):
             return jsonify({"error": "Identifiants invalides"}), 401
 
-        identity = {"id": agri.id_agriculteur}
+        identity = str(agri.id_agriculteur)
         return jsonify({
             "access_token": create_access_token(identity=identity),
             "refresh_token": create_refresh_token(identity=identity),
@@ -100,7 +90,7 @@ def logout():
 def get_me():
     identity = get_jwt_identity()
     try:
-        agri = db.session.get(Agriculteur, identity["id"])
+        agri = db.session.get(Agriculteur, int(identity))
         if not agri or not agri.actif:
             return jsonify({"error": "Utilisateur non trouvé"}), 401
         return jsonify({"data": agri.to_dict()})
@@ -114,7 +104,7 @@ def get_me():
 def update_me():
     identity = get_jwt_identity()
     try:
-        agri = db.session.get(Agriculteur, identity["id"])
+        agri = db.session.get(Agriculteur, int(identity))
         if not agri or not agri.actif:
             return jsonify({"error": "Utilisateur non trouvé"}), 401
 
@@ -151,7 +141,7 @@ def update_me():
 def change_password():
     identity = get_jwt_identity()
     try:
-        agri = db.session.get(Agriculteur, identity["id"])
+        agri = db.session.get(Agriculteur, int(identity))
         if not agri or not agri.actif:
             return jsonify({"error": "Utilisateur non trouvé"}), 401
 

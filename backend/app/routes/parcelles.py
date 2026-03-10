@@ -7,6 +7,8 @@ from app.models.besoin_eau import BesoinEau
 from app.models.stress_hydrique import StressHydrique
 from app.services.parcelle_service import validate_parcelle_data, get_parcelle_with_context
 from app.utils.auth_helpers import require_auth, check_parcelle_ownership
+from app.utils.security import validate_schema
+from app.schemas import ParcelleCreateSchema, ParcelleUpdateSchema
 
 parcelles_bp = Blueprint("parcelles", __name__, url_prefix="/api/parcelles")
 
@@ -51,25 +53,18 @@ def get_parcelle(id, current_user):
 
 @parcelles_bp.route("", methods=["POST"])
 @require_auth
-def create_parcelle(current_user):
-    body = request.get_json(silent=True) or {}
-    # Force ownership
-    body["id_agriculteur"] = current_user.id_agriculteur
-
-    try:
-        validate_parcelle_data(body, is_create=True)
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
-
+@validate_schema(ParcelleCreateSchema)
+def create_parcelle(current_user, validated_data):
+    # data is already validated by Pydantic
     try:
         parcelle = Parcelle(
             id_agriculteur=current_user.id_agriculteur,
-            surface=body["surface"],
-            type_de_sol=TypeSol(body["type_de_sol"]),
-            capacite_eau=body["capacite_eau"],
-            latitude=body.get("latitude"),
-            longitude=body.get("longitude"),
-            id_culture=body.get("id_culture"),
+            surface=validated_data.surface,
+            type_de_sol=TypeSol(validated_data.type_de_sol.value),
+            capacite_eau=validated_data.capacite_eau,
+            latitude=validated_data.latitude,
+            longitude=validated_data.longitude,
+            id_culture=validated_data.id_culture,
             saison_active=False,
         )
         db.session.add(parcelle)
@@ -82,32 +77,23 @@ def create_parcelle(current_user):
 
 @parcelles_bp.route("/<int:id>", methods=["PUT"])
 @require_auth
-def update_parcelle(id, current_user):
+@validate_schema(ParcelleUpdateSchema)
+def update_parcelle(id, current_user, validated_data):
     try:
         parcelle = check_parcelle_ownership(id, current_user)
 
-        body = request.get_json(silent=True) or {}
-        for forbidden in ("saison_active", "date_debut_saison", "id_agriculteur"):
-            if forbidden in body:
-                return jsonify({"error": f"'{forbidden}' ne peut pas être modifié ici."}), 400
-
-        try:
-            validate_parcelle_data(body, is_create=False)
-        except ValueError as e:
-            return jsonify({"error": str(e)}), 400
-
-        if "surface" in body:
-            parcelle.surface = body["surface"]
-        if "capacite_eau" in body:
-            parcelle.capacite_eau = body["capacite_eau"]
-        if "type_de_sol" in body:
-            parcelle.type_de_sol = TypeSol(body["type_de_sol"])
-        if "latitude" in body:
-            parcelle.latitude = body["latitude"]
-        if "longitude" in body:
-            parcelle.longitude = body["longitude"]
-        if "id_culture" in body:
-            parcelle.id_culture = body["id_culture"]
+        if validated_data.surface is not None:
+            parcelle.surface = validated_data.surface
+        if validated_data.capacite_eau is not None:
+            parcelle.capacite_eau = validated_data.capacite_eau
+        if validated_data.type_de_sol is not None:
+            parcelle.type_de_sol = TypeSol(validated_data.type_de_sol.value)
+        if validated_data.latitude is not None:
+            parcelle.latitude = validated_data.latitude
+        if validated_data.longitude is not None:
+            parcelle.longitude = validated_data.longitude
+        if validated_data.id_culture is not None:
+            parcelle.id_culture = validated_data.id_culture
 
         db.session.commit()
         return jsonify({"data": parcelle.to_dict(), "message": "Mis à jour"})
