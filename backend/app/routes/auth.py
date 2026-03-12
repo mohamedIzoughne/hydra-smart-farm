@@ -9,7 +9,7 @@ from flask_jwt_extended import (
 from app import db
 from app.models.agriculteur import Agriculteur
 from app.utils.security import limiter, validate_schema
-from app.schemas import SignupSchema, LoginSchema, PasswordChangeSchema
+from app.schemas import SignupSchema, LoginSchema, PasswordChangeSchema, AgriculteurUpdateSchema
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
@@ -101,25 +101,19 @@ def get_me():
 # ── UPDATE ME ────────────────────────────────────────────────
 @auth_bp.route("/me", methods=["PUT"])
 @jwt_required()
-def update_me():
+@validate_schema(AgriculteurUpdateSchema)
+def update_me(validated_data):
     identity = get_jwt_identity()
     try:
         agri = db.session.get(Agriculteur, int(identity))
         if not agri or not agri.actif:
             return jsonify({"error": "Utilisateur non trouvé"}), 401
 
-        body = request.get_json(silent=True) or {}
+        if validated_data.nom is not None:
+            agri.nom = validated_data.nom
 
-        if "nom" in body:
-            nom = (body["nom"] or "").strip()
-            if not nom or len(nom) > 100:
-                return jsonify({"error": "Nom invalide"}), 400
-            agri.nom = nom
-
-        if "mail" in body:
-            mail = (body["mail"] or "").strip()
-            if len(mail) > 150 or not EMAIL_RE.match(mail):
-                return jsonify({"error": "Adresse mail invalide"}), 400
+        if validated_data.mail is not None:
+            mail = validated_data.mail
             existing = Agriculteur.query.filter(
                 Agriculteur.mail == mail,
                 Agriculteur.id_agriculteur != agri.id_agriculteur,
@@ -138,28 +132,18 @@ def update_me():
 # ── CHANGE PASSWORD ──────────────────────────────────────────
 @auth_bp.route("/change-password", methods=["PUT"])
 @jwt_required()
-def change_password():
+@validate_schema(PasswordChangeSchema)
+def change_password(validated_data):
     identity = get_jwt_identity()
     try:
         agri = db.session.get(Agriculteur, int(identity))
         if not agri or not agri.actif:
             return jsonify({"error": "Utilisateur non trouvé"}), 401
 
-        body = request.get_json(silent=True) or {}
-        ancien = body.get("ancien_mot_de_passe") or ""
-        nouveau = body.get("nouveau_mot_de_passe") or ""
-        confirmation = body.get("confirmation") or ""
-
-        if not ancien or not nouveau or not confirmation:
-            return jsonify({"error": "Tous les champs sont requis"}), 400
-        if not agri.check_password(ancien):
+        if not agri.check_password(validated_data.ancien_mot_de_passe):
             return jsonify({"error": "Ancien mot de passe incorrect"}), 400
-        if len(nouveau) < 8:
-            return jsonify({"error": "Le nouveau mot de passe doit contenir au moins 8 caractères"}), 400
-        if nouveau != confirmation:
-            return jsonify({"error": "Le nouveau mot de passe et la confirmation ne correspondent pas"}), 400
 
-        agri.mot_de_passe = generate_password_hash(nouveau)
+        agri.mot_de_passe = generate_password_hash(validated_data.nouveau_mot_de_passe)
         db.session.commit()
         return jsonify({"message": "Mot de passe modifié"})
     except SQLAlchemyError as e:

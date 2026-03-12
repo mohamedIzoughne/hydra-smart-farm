@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, validator
 from typing import Optional
 from datetime import date
 from enum import Enum
@@ -20,6 +20,21 @@ class SignupSchema(BaseModel):
 class LoginSchema(BaseModel):
     mail: EmailStr
     mot_de_passe: str = Field(..., min_length=1)
+
+class PasswordChangeSchema(BaseModel):
+    ancien_mot_de_passe: str = Field(..., min_length=1)
+    nouveau_mot_de_passe: str = Field(..., min_length=8)
+    confirmation: str = Field(..., min_length=8)
+
+    @validator('confirmation')
+    def passwords_match(cls, v, values, **kwargs):
+        if 'nouveau_mot_de_passe' in values and v != values['nouveau_mot_de_passe']:
+            raise ValueError('Le nouveau mot de passe et la confirmation ne correspondent pas')
+        return v
+
+class AgriculteurUpdateSchema(BaseModel):
+    nom: Optional[str] = Field(None, min_length=2, max_length=100)
+    mail: Optional[EmailStr] = None
 
 # --- Parcelle Schemas ---
 
