@@ -1,22 +1,18 @@
 import React, { useState, useMemo } from "react";
-import { useParcelles, useMesures, useCreateMesure, useUpdateMesure, useDeleteMesure } from "@/hooks/useApi";
+import { useParcelles, useMesures, useUpdateMesure, useDeleteMesure } from "@/hooks/useApi";
 import { useNotificationStore } from "@/lib/stores";
 import { DataTable, type Column } from "@/components/smart/DataTable";
 import { Modal } from "@/components/smart/Modal";
 import { FormField } from "@/components/smart/FormField";
 import { ConfirmDialog } from "@/components/smart/ConfirmDialog";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, Info, CloudRain } from "lucide-react";
+import { Pencil, Trash2, Info, CloudRain } from "lucide-react";
 
 export default function MesuresPage() {
   const notify = useNotificationStore((s) => s.notify);
   const [parcelleId, setParcelleId] = useState("");
   const [depuis, setDepuis] = useState("");
   const [jusqu, setJusqu] = useState("");
-
-  const [createOpen, setCreateOpen] = useState(false);
-  const [createForm, setCreateForm] = useState({ date_prevision: "", temperature: "", pluie: "", humidite: "", source_api: "OpenMeteo" });
-  const [createError, setCreateError] = useState("");
 
   const [editItem, setEditItem] = useState<Record<string, unknown> | null>(null);
   const [editForm, setEditForm] = useState({ temperature: "", pluie: "", humidite: "", source_api: "" });
@@ -49,27 +45,8 @@ export default function MesuresPage() {
   const { data: mesuresData, isLoading: loading } = useMesures(mesureParams);
   const rows = mesuresData?.data ?? [];
 
-  const createMutation = useCreateMesure();
   const updateMutation = useUpdateMesure();
   const deleteMutation = useDeleteMesure();
-
-  const handleCreate = async () => {
-    setCreateError("");
-    const payload: Record<string, unknown> = {
-      id_parcelle: parseInt(parcelleId),
-      date_prevision: createForm.date_prevision,
-      temperature: parseFloat(createForm.temperature),
-      pluie: parseFloat(createForm.pluie),
-      source_api: createForm.source_api || "OpenMeteo",
-    };
-    if (createForm.humidite) payload.humidite = parseFloat(createForm.humidite);
-    try {
-      const res = await createMutation.mutateAsync(payload);
-      notify("success", "Mesure ajoutée" + (res.besoin_genere ? " — besoin J+1 calculé" : ""));
-      setCreateOpen(false);
-      setCreateForm({ date_prevision: "", temperature: "", pluie: "", humidite: "", source_api: "OpenMeteo" });
-    } catch (e: any) { setCreateError(e.message); }
-  };
 
   const handleEdit = async () => {
     if (!editItem) return;
@@ -142,9 +119,6 @@ export default function MesuresPage() {
             <p className="text-sm text-muted-foreground">Relevés météo par parcelle</p>
           </div>
         </div>
-        <Button onClick={() => { setCreateOpen(true); setCreateError(""); }} disabled={!parcelleId} className="rounded-full px-5 shadow-md shadow-primary/15">
-          <Plus className="w-4 h-4" /> Ajouter mesure
-        </Button>
       </div>
 
       {recalcBanner && (
@@ -172,34 +146,6 @@ export default function MesuresPage() {
       </div>
 
       <DataTable columns={columns} rows={rows} loading={loading} emptyMessage="Aucune mesure pour cette parcelle" />
-
-      {/* Create Modal */}
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Ajouter une mesure" footer={
-        <><Button variant="outline" onClick={() => setCreateOpen(false)} className="rounded-xl">Annuler</Button><Button onClick={handleCreate} className="rounded-xl">Ajouter</Button></>
-      }>
-        <div className="space-y-5">
-          {createError && <p className="text-sm text-destructive bg-destructive/[0.08] border border-destructive/20 p-3 rounded-xl">{createError}</p>}
-          <FormField label="Date prévision" required>
-            <input type="date" className="field-input" value={createForm.date_prevision} onChange={(e) => setCreateForm({ ...createForm, date_prevision: e.target.value })} />
-          </FormField>
-          <div className="grid grid-cols-2 gap-4">
-            <FormField label="Température (°C)" required>
-              <input type="number" step="0.1" min="-50" max="60" className="field-input" value={createForm.temperature} onChange={(e) => setCreateForm({ ...createForm, temperature: e.target.value })} />
-            </FormField>
-            <FormField label="Pluie (mm)" required>
-              <input type="number" step="0.1" min="0" className="field-input" value={createForm.pluie} onChange={(e) => setCreateForm({ ...createForm, pluie: e.target.value })} />
-            </FormField>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <FormField label="Humidité (%)">
-              <input type="number" step="0.1" min="0" max="100" className="field-input" value={createForm.humidite} onChange={(e) => setCreateForm({ ...createForm, humidite: e.target.value })} />
-            </FormField>
-            <FormField label="Source API">
-              <input className="field-input" value={createForm.source_api} onChange={(e) => setCreateForm({ ...createForm, source_api: e.target.value })} />
-            </FormField>
-          </div>
-        </div>
-      </Modal>
 
       {/* Edit Modal */}
       <Modal open={!!editItem} onClose={() => setEditItem(null)} title="Modifier la mesure" footer={

@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from app import db
 from app.models.mesure_climatique import MesureClimatique
@@ -52,6 +52,7 @@ def list_mesures(current_user):
         mesures = query.all()
         return jsonify({"data": [m.to_dict() for m in mesures], "total": len(mesures)})
     except SQLAlchemyError as e:
+        current_app.logger.exception(f"Erreur DB dans list_mesures: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -64,6 +65,7 @@ def get_mesure(id, current_user):
         data["besoin_eau"] = mesure.besoin.to_dict() if mesure.besoin else None
         return jsonify({"data": data})
     except SQLAlchemyError as e:
+        current_app.logger.exception(f"Erreur DB dans get_mesure: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -96,11 +98,13 @@ def create_mesure(current_user, validated_data):
             "data": mesure.to_dict(),
             "besoin_genere": besoin.to_dict() if besoin else None,
         }), 201
-    except IntegrityError:
+    except IntegrityError as e:
         db.session.rollback()
+        current_app.logger.exception(f"Erreur d'intégrité DB dans create_mesure: {e}")
         return jsonify({"error": "Une mesure existe déjà pour cette parcelle à cette date"}), 409
     except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.exception(f"Erreur DB dans create_mesure: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -138,6 +142,7 @@ def update_mesure(id, current_user, validated_data):
         return jsonify({"data": mesure.to_dict(), "message": "Mis à jour"})
     except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.exception(f"Erreur DB dans update_mesure: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -149,9 +154,11 @@ def delete_mesure(id, current_user):
         db.session.delete(mesure)
         db.session.commit()
         return jsonify({"message": "Mesure supprimée"})
-    except IntegrityError:
+    except IntegrityError as e:
         db.session.rollback()
+        current_app.logger.exception(f"Erreur d'intégrité DB dans delete_mesure: {e}")
         return jsonify({"error": "Impossible de supprimer : un besoin en eau référence cette mesure"}), 409
     except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.exception(f"Erreur DB dans delete_mesure: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500

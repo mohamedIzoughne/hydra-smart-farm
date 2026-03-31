@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from sqlalchemy.exc import SQLAlchemyError
 from app import db
 from app.models.stress_hydrique import StressHydrique, NiveauStress
@@ -40,6 +40,7 @@ def list_stress(current_user):
         records = query.all()
         return jsonify({"data": [s.to_dict() for s in records], "total": len(records)})
     except SQLAlchemyError as e:
+        current_app.logger.exception(f"Erreur DB dans list_stress: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -50,6 +51,7 @@ def get_stress(id, current_user):
         stress = check_stress_ownership(id, current_user)
         return jsonify({"data": stress.to_dict()})
     except SQLAlchemyError as e:
+        current_app.logger.exception(f"Erreur DB dans get_stress: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -63,6 +65,7 @@ def simuler_stress(parcelle_id, current_user):
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except SQLAlchemyError as e:
+        current_app.logger.exception(f"Erreur DB dans simuler_stress: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -76,4 +79,5 @@ def delete_stress(id, current_user):
         return jsonify({"message": "Enregistrement supprimé"})
     except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.exception(f"Erreur DB dans delete_stress: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500

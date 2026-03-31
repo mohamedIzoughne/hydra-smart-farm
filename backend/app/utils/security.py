@@ -68,7 +68,7 @@ def validate_schema(schema_class):
                 return f(*args, **kwargs)
             except ValidationError as e:
                 return jsonify({
-                    "error": "Validation failed (OWASP Security)",
+                    "error": "Validation failed",
                     "details": e.errors()
                 }), 422
         return wrapper
@@ -82,7 +82,7 @@ def owasp_input_validation(app):
     def validate_request():
         # OWASP: Prevent oversized requests (DoS)
         if request.content_length and request.content_length > 1024 * 1024:
-            return jsonify({"error": "Payload too large (OWASP Security)"}), 413
+            return jsonify({"error": "Payload too large"}), 413
             
         if request.is_json:
             try:

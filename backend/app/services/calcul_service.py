@@ -82,7 +82,7 @@ def calcul_stress_hydrique(parcelle_id):
     if ratio >= 2.0:
         niveau = "Critique"
     elif ratio >= 1.5:
-        niveau = "Élevé"
+        niveau = "Eleve"
     elif ratio >= 1.0:
         niveau = "Moyen"
     else:
@@ -91,19 +91,48 @@ def calcul_stress_hydrique(parcelle_id):
     alerte = deficit > seuil_abs
 
     # Suggest lower-water cultures
-    cultures_suggere = None
+    suggestions_data = []
     if parcelle.date_debut_saison:
         from datetime import date
         duree = max((date.today() - parcelle.date_debut_saison).days, 1)
-        suggestions = (
+
+        # 1. Try to find cultures that fit within the capacity
+        matching_suggestions = (
             Culture.query
             .filter(Culture.besoin_eau_base * duree < capacite)
             .filter(Culture.id_culture != (parcelle.id_culture or 0))
             .order_by(Culture.besoin_eau_base.asc())
             .all()
         )
-        if suggestions:
-            cultures_suggere = ", ".join(c.nom_culture for c in suggestions)
+
+        if matching_suggestions:
+            for c in matching_suggestions:
+                est_need = float(c.besoin_eau_base) * duree
+                suggestions_data.append({
+                    "id": c.id_culture,
+                    "nom": c.nom_culture,
+                    "besoin_estime": round(est_need, 2),
+                    "deficit_estime": round(max(est_need - capacite, 0.0), 2),
+                    "match": True
+                })
+        else:
+            # 2. No perfect match? Find 3 closest ones (lowest needs)
+            closest = (
+                Culture.query
+                .filter(Culture.id_culture != (parcelle.id_culture or 0))
+                .order_by(Culture.besoin_eau_base.asc())
+                .limit(3)
+                .all()
+            )
+            for c in closest:
+                est_need = float(c.besoin_eau_base) * duree
+                suggestions_data.append({
+                    "id": c.id_culture,
+                    "nom": c.nom_culture,
+                    "besoin_estime": round(est_need, 2),
+                    "deficit_estime": round(max(est_need - capacite, 0.0), 2),
+                    "match": False
+                })
 
     return {
         "besoin_total": round(besoin_total, 2),
@@ -111,5 +140,5 @@ def calcul_stress_hydrique(parcelle_id):
         "deficit": round(deficit, 2),
         "niveau_stress": niveau,
         "alerte_active": alerte,
-        "cultures_suggere": cultures_suggere,
+        "cultures_suggere": suggestions_data,
     }

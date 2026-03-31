@@ -35,6 +35,7 @@ class PasswordChangeSchema(BaseModel):
 class AgriculteurUpdateSchema(BaseModel):
     nom: Optional[str] = Field(None, min_length=2, max_length=100)
     mail: Optional[EmailStr] = None
+    heure_sync: Optional[int] = Field(None, ge=0, le=23)
 
 # --- Parcelle Schemas ---
 

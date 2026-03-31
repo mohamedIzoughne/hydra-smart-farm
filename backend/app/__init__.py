@@ -34,11 +34,10 @@ def create_app(config_class="config.Config"):
         # We uniquely identify the job with 'id'
         if not scheduler.get_job('daily_weather_sync'):
             scheduler.add_job(
-                id='daily_weather_sync',
+                id='hourly_weather_sync',
                 func=sync_all_active_parcelles,
                 args=[app],
                 trigger='cron',
-                hour=4,
                 minute=0
             )
 

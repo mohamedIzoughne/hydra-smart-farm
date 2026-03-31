@@ -232,21 +232,6 @@ export function useMesures(params: Record<string, string>) {
   });
 }
 
-export function useCreateMesure() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (data: Record<string, unknown>) => {
-      const res = await mesuresApi.create(data);
-      if (res.error) throw new Error(res.error);
-      return res;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.mesures.all });
-      qc.invalidateQueries({ queryKey: queryKeys.parcelles.all });
-      qc.invalidateQueries({ queryKey: queryKeys.besoins.all });
-    },
-  });
-}
 
 export function useUpdateMesure() {
   const qc = useQueryClient();

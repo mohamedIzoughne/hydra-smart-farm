@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from sqlalchemy.exc import SQLAlchemyError
 from app import db
 from app.models.besoin_eau import BesoinEau, GenerePar
@@ -42,6 +42,7 @@ def list_besoins(current_user):
         besoins = query.all()
         return jsonify({"data": [b.to_dict() for b in besoins], "total": len(besoins)})
     except SQLAlchemyError as e:
+        current_app.logger.exception(f"Erreur DB dans list_besoins: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -52,6 +53,7 @@ def get_besoin(id, current_user):
         besoin = check_besoin_ownership(id, current_user)
         return jsonify({"data": besoin.to_dict()})
     except SQLAlchemyError as e:
+        current_app.logger.exception(f"Erreur DB dans get_besoin: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -80,6 +82,7 @@ def appliquer_volume(id, current_user):
         return jsonify({"data": besoin.to_dict(), "message": "Volume appliqué enregistré"})
     except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.exception(f"Erreur DB dans appliquer_volume: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -93,4 +96,5 @@ def delete_besoin(id, current_user):
         return jsonify({"message": "Besoin supprimé"})
     except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.exception(f"Erreur DB dans delete_besoin: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500

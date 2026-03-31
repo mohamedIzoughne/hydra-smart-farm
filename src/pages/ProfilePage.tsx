@@ -18,7 +18,7 @@ export default function ProfilePage() {
   const parcelleCount = parcellesData?.data?.length ?? 0;
 
   const [editing, setEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ nom: "", mail: "" });
+  const [editForm, setEditForm] = useState({ nom: "", mail: "", heure_sync: 4 });
   const [editError, setEditError] = useState("");
 
   const [pwForm, setPwForm] = useState({ ancien_mot_de_passe: "", nouveau_mot_de_passe: "", confirmation: "" });
@@ -27,7 +27,7 @@ export default function ProfilePage() {
   // Sync edit form when profile loads
   const initEditForm = () => {
     const u = user || storeUser;
-    if (u) setEditForm({ nom: u.nom, mail: u.mail });
+    if (u) setEditForm({ nom: u.nom, mail: u.mail, heure_sync: u.heure_sync ?? 4 });
   };
 
   const handleUpdateProfile = async () => {
@@ -112,6 +112,10 @@ export default function ProfilePage() {
             <div>
               <label htmlFor="edit-mail" className="block text-sm font-medium mb-1.5 text-foreground">Email</label>
               <input id="edit-mail" type="email" className="field-input" value={editForm.mail} onChange={(e) => setEditForm({ ...editForm, mail: e.target.value })} />
+            </div>
+            <div>
+              <label htmlFor="edit-heure" className="block text-sm font-medium mb-1.5 text-foreground">Heure de synchronisation (0-23)</label>
+              <input id="edit-heure" type="number" min="0" max="23" className="field-input" value={editForm.heure_sync} onChange={(e) => setEditForm({ ...editForm, heure_sync: Number(e.target.value) })} />
             </div>
             <div className="flex gap-2 pt-1">
               <Button size="sm" className="rounded-xl" onClick={handleUpdateProfile} disabled={updateProfileMutation.isPending}>

@@ -74,8 +74,44 @@ export default function AlertesPage() {
     { key: "capacite_source", label: "Capacité (L)", render: (v) => Number(v).toLocaleString("fr-FR") },
     { key: "deficit_calcule", label: "Déficit (L)", sortable: true, render: (v) => Number(v).toLocaleString("fr-FR") },
     { key: "alerte_active", label: "Alerte", render: (v) => <Badge value={v ? "Oui" : "Non"} type={v ? "danger" : "neutral"} /> },
-    { key: "recommandation", label: "Recommandation", render: (v) => v ? <span className="text-xs max-w-[200px] truncate block">{String(v)}</span> : "—" },
-    { key: "cultures_suggere", label: "Suggestions", render: (v) => v ? String(v) : "—" },
+    { key: "recommandation", label: "Recommandation", render: (v) => v ? <span className="text-xs max-w-[160px] truncate block">{String(v)}</span> : "—" },
+    {
+      key: "cultures_suggere", label: "Suggestions", render: (v) => {
+        if (!v) return "—";
+        let suggestions: any[] = [];
+        if (Array.isArray(v)) {
+          suggestions = v;
+        } else if (typeof v === "string") {
+          try {
+            const parsed = JSON.parse(v);
+            suggestions = Array.isArray(parsed) ? parsed : [];
+          } catch (e) {
+            suggestions = v.split(",").map(s => s.trim()).filter(Boolean).map(s => ({ nom: s, match: true }));
+          }
+        }
+
+        if (suggestions.length === 0) return "—";
+
+        return (
+          <div className="flex flex-wrap gap-1 py-1">
+            {suggestions.map((s, i) => (
+              <div key={i} className={`group relative px-2 py-0.5 rounded-lg border text-[9px] font-bold transition-all ${s.match ? "border-success/20 bg-success/[0.04] text-success" : "border-accent/20 bg-accent/[0.04] text-accent"}`}>
+                {s.nom}
+                {s.deficit_estime !== undefined && (
+                  <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-2 bg-popover border rounded-xl shadow-xl z-50 min-w-[120px] pointer-events-none">
+                    <p className="text-[9px] text-muted-foreground uppercase mb-0.5">Déficit estimé</p>
+                    <p className={`text-xs font-black ${s.deficit_estime > 0 ? "text-destructive" : "text-success"}`}>
+                      {Number(s.deficit_estime).toLocaleString()} L
+                    </p>
+                    <div className="w-2 h-2 bg-popover border-b border-r rotate-45 absolute -bottom-1 left-1/2 -translate-x-1/2" />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        );
+      }
+    },
     {
       key: "actions", label: "", render: (_, row) => (
         <div onClick={(e) => e.stopPropagation()}>
@@ -134,7 +170,6 @@ export default function AlertesPage() {
               {alertes.map((a, i) => {
                 const deficit = Number(a.deficit_calcule || 0);
                 const capacite = Number(a.capacite_source || 1);
-                const suggestions = a.cultures_suggere ? String(a.cultures_suggere).split(",").map((s) => s.trim()) : [];
                 return (
                   <div key={i} className={`group rounded-2xl border-2 p-6 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${niveauColor(String(a.niveau_stress))}`}>
                     <div className="flex items-start justify-between mb-4">
@@ -153,15 +188,58 @@ export default function AlertesPage() {
                       <ProgressBar value={deficit} max={capacite} />
                     </div>
 
-                    {suggestions.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mb-4">
-                        {suggestions.map((s, j) => (
-                          <span key={j} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-accent/[0.08] text-accent border border-accent/15">
-                            <Droplets className="w-3 h-3" />{s}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                    {(() => {
+                      let suggestions: any[] = [];
+                      const raw = a.cultures_suggere;
+                      if (Array.isArray(raw)) {
+                        // Already parsed (e.g. from simulation endpoint)
+                        suggestions = raw;
+                      } else if (typeof raw === "string" && raw.trim()) {
+                        try {
+                          const parsed = JSON.parse(raw);
+                          suggestions = Array.isArray(parsed) ? parsed : [];
+                        } catch {
+                          // Legacy: comma-separated names
+                          suggestions = raw.split(",").map((s: string) => s.trim()).filter(Boolean).map((s: string) => ({ nom: s, match: true, deficit_estime: undefined }));
+                        }
+                      }
+
+                      if (suggestions.length === 0) return null;
+
+                      const matches = suggestions.filter((s: any) => s.match);
+                      const hasDeficitData = suggestions.some((s: any) => s.deficit_estime !== undefined);
+
+                      return (
+                        <div className="space-y-2 mb-5">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
+                            {matches.length > 0 ? "Cultures Recommandées" : "Alternatives Proches"}
+                          </p>
+                          <div className="flex flex-col gap-1.5">
+                            {suggestions.map((s: any, j: number) => (
+                              <div key={j} className={`flex items-center ${hasDeficitData ? "justify-between" : ""} p-2.5 rounded-xl border ${s.match !== false ? "border-success/20 bg-success/[0.03]" : "border-accent/20 bg-accent/[0.03]"}`}>
+                                <div className="flex items-center gap-2">
+                                  <div className={`p-1.5 rounded-lg ${s.match !== false ? "bg-success/10 text-success" : "bg-accent/10 text-accent"}`}>
+                                    <Droplets className="w-3.5 h-3.5" />
+                                  </div>
+                                  <span className="font-bold text-foreground text-sm">{s.nom}</span>
+                                </div>
+                                {hasDeficitData && s.deficit_estime !== undefined && (
+                                  <div className="text-right">
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase leading-none">Déficit estimé</p>
+                                    <p className={`text-xs font-black ${s.deficit_estime > 0 ? "text-destructive" : "text-success"}`}>
+                                      {Number(s.deficit_estime).toLocaleString("fr-FR")} L
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                          {!matches.length && suggestions.filter((s: any) => !s.match).length > 0 && (
+                            <p className="text-[10px] text-muted-foreground italic">Aucune culture ne respecte totalement la capacité de cette parcelle. Voici les options les plus proches.</p>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {a.recommandation && (
                       <p className="text-xs text-muted-foreground mb-4 line-clamp-2">{String(a.recommandation)}</p>

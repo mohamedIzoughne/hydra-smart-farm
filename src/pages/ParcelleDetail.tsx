@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   useParcelle, useParcelleBesoins, useParcelleStress,
-  useOuvrirSaison, useFermerSaison, useCreateMesure,
+  useOuvrirSaison, useFermerSaison,
   useAppliquerBesoin, useSimulerStress, useWeatherSync,
 } from "@/hooks/useApi";
 import { useNotificationStore } from "@/lib/stores";
@@ -24,14 +24,11 @@ export default function ParcelleDetail() {
 
   const [confirmFermer, setConfirmFermer] = useState(false);
   const [simResult, setSimResult] = useState<Record<string, unknown> | null>(null);
-  const [mesureForm, setMesureForm] = useState({ date_prevision: "", temperature: "", pluie: "", humidite: "" });
-  const [mesureError, setMesureError] = useState("");
   const [editingBesoinId, setEditingBesoinId] = useState<number | null>(null);
   const [editVolume, setEditVolume] = useState("");
 
   const ouvrirSaison = useOuvrirSaison();
   const fermerSaison = useFermerSaison();
-  const createMesure = useCreateMesure();
   const appliquerBesoin = useAppliquerBesoin();
   const simulerStress = useSimulerStress();
   const weatherSync = useWeatherSync();
@@ -49,22 +46,6 @@ export default function ParcelleDetail() {
       notify("success", "Saison clôturée. Audit de stress généré.");
       setConfirmFermer(false);
     } catch (e: any) { notify("error", e.message); }
-  };
-
-  const handleAddMesure = async () => {
-    setMesureError("");
-    const payload: Record<string, unknown> = {
-      id_parcelle: parcelleId,
-      date_prevision: mesureForm.date_prevision,
-      temperature: parseFloat(mesureForm.temperature),
-      pluie: parseFloat(mesureForm.pluie),
-    };
-    if (mesureForm.humidite) payload.humidite = parseFloat(mesureForm.humidite);
-    try {
-      const res = await createMesure.mutateAsync(payload);
-      notify("success", "Mesure ajoutée" + (res.besoin_genere ? " — besoin calculé automatiquement" : ""));
-      setMesureForm({ date_prevision: "", temperature: "", pluie: "", humidite: "" });
-    } catch (e: any) { setMesureError(e.message); }
   };
 
   const handleAppliquer = async (besoinId: number) => {
@@ -143,7 +124,43 @@ export default function ParcelleDetail() {
     { key: "besoin_total_saison", label: "Besoin total (L)", render: (v) => Number(v).toLocaleString("fr-FR") },
     { key: "deficit_calcule", label: "Déficit (L)", render: (v) => Number(v).toLocaleString("fr-FR") },
     { key: "alerte_active", label: "Alerte", render: (v) => <Badge value={v ? "Oui" : "Non"} type={v ? "danger" : "neutral"} /> },
-    { key: "cultures_suggere", label: "Suggestions", render: (v) => v ? String(v) : "—" },
+    {
+      key: "cultures_suggere", label: "Suggestions", render: (v) => {
+        if (!v) return "—";
+        let suggestions: any[] = [];
+        if (Array.isArray(v)) {
+          suggestions = v;
+        } else if (typeof v === "string") {
+          try {
+            const parsed = JSON.parse(v);
+            suggestions = Array.isArray(parsed) ? parsed : [];
+          } catch (e) {
+            suggestions = v.split(",").map(s => s.trim()).filter(Boolean).map(s => ({ nom: s, match: true }));
+          }
+        }
+
+        if (suggestions.length === 0) return "—";
+
+        return (
+          <div className="flex flex-wrap gap-1.5 py-1">
+            {suggestions.map((s, i) => (
+              <div key={i} className={`group relative px-2 py-1 rounded-lg border text-[10px] font-bold transition-all ${s.match ? "border-success/20 bg-success/[0.04] text-success" : "border-accent/20 bg-accent/[0.04] text-accent"}`}>
+                {s.nom}
+                {s.deficit_estime !== undefined && (
+                  <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-2 bg-popover border rounded-xl shadow-xl z-50 min-w-[120px] pointer-events-none">
+                    <p className="text-[9px] text-muted-foreground uppercase mb-0.5">Déficit estimé</p>
+                    <p className={`text-xs font-black ${s.deficit_estime > 0 ? "text-destructive" : "text-success"}`}>
+                      {Number(s.deficit_estime).toLocaleString()} L
+                    </p>
+                    <div className="w-2 h-2 bg-popover border-b border-r rotate-45 absolute -bottom-1 left-1/2 -translate-x-1/2" />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        );
+      }
+    },
   ];
 
   return (
@@ -212,35 +229,19 @@ export default function ParcelleDetail() {
         </div>
       </div>
 
-      {/* Weather sync + manual mesure */}
+      {/* Weather sync */}
       {saisonActive && (
         <div className="bg-card border border-border/60 rounded-2xl p-6 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Ajouter une mesure climatique</p>
-            {hasCoords && (
+            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Synchronisation météo et besoins</p>
+            {hasCoords ? (
               <Button variant="outline" size="sm" className="rounded-xl font-semibold gap-1.5" onClick={handleWeatherSync} disabled={weatherSync.isPending}>
                 {weatherSync.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CloudSun className="w-3.5 h-3.5" />}
                 Sync météo 7j
               </Button>
+            ) : (
+              <p className="text-xs text-destructive">Coordonnées GPS manquantes</p>
             )}
-          </div>
-          {mesureError && <p className="text-sm text-destructive bg-destructive/[0.08] border border-destructive/20 p-3 rounded-xl">{mesureError}</p>}
-          <div className="flex flex-wrap gap-3 items-end">
-            <FormField label="Date" required className="flex-1 min-w-[130px]">
-              <input type="date" className="field-input py-1.5" value={mesureForm.date_prevision} onChange={(e) => setMesureForm({ ...mesureForm, date_prevision: e.target.value })} />
-            </FormField>
-            <FormField label="Temp. (°C)" required className="w-28">
-              <input type="number" step="0.1" className="field-input py-1.5" value={mesureForm.temperature} onChange={(e) => setMesureForm({ ...mesureForm, temperature: e.target.value })} />
-            </FormField>
-            <FormField label="Pluie (mm)" required className="w-28">
-              <input type="number" step="0.1" min="0" className="field-input py-1.5" value={mesureForm.pluie} onChange={(e) => setMesureForm({ ...mesureForm, pluie: e.target.value })} />
-            </FormField>
-            <FormField label="Humidité (%)" className="w-28">
-              <input type="number" step="0.1" min="0" max="100" className="field-input py-1.5" value={mesureForm.humidite} onChange={(e) => setMesureForm({ ...mesureForm, humidite: e.target.value })} />
-            </FormField>
-            <Button size="sm" className="rounded-xl font-semibold" onClick={handleAddMesure} disabled={createMesure.isPending}>
-              {createMesure.isPending ? "..." : "Ajouter"}
-            </Button>
           </div>
         </div>
       )}
@@ -281,7 +282,32 @@ export default function ParcelleDetail() {
             <div className="flex justify-between p-3 rounded-xl bg-muted/30"><span className="text-muted-foreground">Capacité</span><span className="font-bold">{Number(simResult.capacite_source).toLocaleString("fr-FR")} L</span></div>
             <div className="flex justify-between p-3 rounded-xl bg-muted/30"><span className="text-muted-foreground">Déficit</span><span className="font-bold">{Number(simResult.deficit).toLocaleString("fr-FR")} L</span></div>
             <div className="flex justify-between items-center p-3 rounded-xl bg-muted/30"><span className="text-muted-foreground">Niveau</span><Badge value={String(simResult.niveau_stress)} type={stressBadgeType(String(simResult.niveau_stress))} /></div>
-            {simResult.cultures_suggere && <div className="p-3 rounded-xl bg-muted/30"><span className="text-muted-foreground text-xs">Suggestions:</span><p className="mt-1 font-medium">{String(simResult.cultures_suggere)}</p></div>}
+            {(() => {
+              const raw = simResult.cultures_suggere;
+              const suggestions: any[] = Array.isArray(raw) ? raw : [];
+              if (!suggestions.length) return null;
+              const hasMatches = suggestions.some(s => s.match);
+              return (
+                <div className="p-3 rounded-xl bg-muted/30 space-y-2">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    {hasMatches ? "Cultures adaptées" : "Alternatives proches"}
+                  </p>
+                  {!hasMatches && (
+                    <p className="text-[10px] text-muted-foreground/70 italic">Aucune culture ne s'adapte parfaitement — voici les plus proches.</p>
+                  )}
+                  <div className="flex flex-col gap-1.5">
+                    {suggestions.map((s: any, j: number) => (
+                      <div key={j} className={`flex items-center justify-between px-3 py-2 rounded-lg border ${s.match ? "border-success/20 bg-success/[0.04]" : "border-accent/20 bg-accent/[0.04]"}`}>
+                        <span className={`font-semibold text-sm ${s.match ? "text-success" : "text-accent"}`}>{s.nom}</span>
+                        <span className={`text-xs font-black ${s.deficit_estime > 0 ? "text-destructive" : "text-success"}`}>
+                          Déficit: {Number(s.deficit_estime ?? 0).toLocaleString("fr-FR")} L
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
             <p className="text-xs text-muted-foreground italic pt-1 text-center">Simulation — non enregistrée.</p>
           </div>
         )}

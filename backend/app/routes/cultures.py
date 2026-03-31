@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from sqlalchemy.exc import SQLAlchemyError
 from app import db
 from app.models.culture import Culture
@@ -25,6 +25,7 @@ def list_cultures(current_user):
         cultures = query.all()
         return jsonify({"data": [c.to_dict() for c in cultures], "total": len(cultures)})
     except SQLAlchemyError as e:
+        current_app.logger.exception(f"Erreur DB dans list_cultures: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -37,6 +38,7 @@ def get_culture(id, current_user):
             return jsonify({"error": "Culture non trouvée"}), 404
         return jsonify({"data": culture.to_dict()})
     except SQLAlchemyError as e:
+        current_app.logger.exception(f"Erreur DB dans get_culture: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -57,6 +59,7 @@ def create_culture(current_user, validated_data):
         return jsonify({"data": culture.to_dict(), "message": "Culture créée"}), 201
     except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.exception(f"Erreur DB dans create_culture: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -79,6 +82,7 @@ def update_culture(id, current_user, validated_data):
         return jsonify({"data": culture.to_dict(), "message": "Mis à jour"})
     except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.exception(f"Erreur DB dans update_culture: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -97,4 +101,5 @@ def delete_culture(id, current_user):
         return jsonify({"message": "Culture supprimée"})
     except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.exception(f"Erreur DB dans delete_culture: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500

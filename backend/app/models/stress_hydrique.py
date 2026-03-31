@@ -6,7 +6,7 @@ from app import db
 class NiveauStress(enum.Enum):
     Faible = "Faible"
     Moyen = "Moyen"
-    Eleve = "Élevé"
+    Eleve = "Eleve"
     Critique = "Critique"
 
 

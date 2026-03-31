@@ -11,7 +11,7 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-agripassword}
     ports:
       # host:container  — your local Flask app connects via localhost:3306
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       # Named volume persists data between container restarts
       - smartagri_mysql_data:/var/lib/mysql

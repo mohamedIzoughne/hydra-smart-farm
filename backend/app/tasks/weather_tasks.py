@@ -3,7 +3,7 @@ from app import db
 from app.models.parcelle import Parcelle
 from app.models.culture import Culture
 from app.models.mesure_climatique import MesureClimatique
-from app.models.besoin_eau import BesoinEau
+from app.models.besoin_eau import BesoinEau, GenerePar
 from app.services.weather_service import fetch_forecast
 from app.services.calcul_service import calcul_volume_besoin
 
@@ -13,11 +13,16 @@ def sync_all_active_parcelles(app):
     Triggered daily at 04:00 AM.
     """
     with app.app_context():
-        print(f"[{datetime.now()}] Starting daily weather sync for all active parcelles...")
+        current_hour = datetime.now().hour
+        print(f"[{datetime.now()}] Starting hourly weather sync. Target heure_sync={current_hour}...")
         
         try:
-            # 1. Get all parcelles with an active season
-            active_parcelles = Parcelle.query.filter_by(saison_active=True).all()
+            from app.models.agriculteur import Agriculteur
+            # 1. Get all parcelles with an active season AND matching user sync hour
+            active_parcelles = Parcelle.query.join(Agriculteur).filter(
+                Parcelle.saison_active == True,
+                Agriculteur.heure_sync == current_hour
+            ).all()
             print(f"Found {len(active_parcelles)} active parcelles to sync.")
 
             for parcelle in active_parcelles:
@@ -84,9 +89,12 @@ def sync_all_active_parcelles(app):
                                         id_mesure=mesure.id_mesure,
                                         date_besoin=date_prev,
                                         volume_recommande=volume,
-                                        genere_par="Système",
+                                        genere_par=GenerePar.Systeme,
                                     )
                                     db.session.add(besoin)
+                                elif existing_besoin.volume_applique is None:
+                                    # Update if the calculated volume changes due to updated forecast, and user hasn't watered
+                                    existing_besoin.volume_recommande = volume
 
                     db.session.commit()
                     print(f"Successfully synced Parcelle {parcelle.id_parcelle}.")

@@ -1,5 +1,5 @@
 import re
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import generate_password_hash
 from flask_jwt_extended import (
@@ -16,7 +16,7 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
 # ── SIGNUP ───────────────────────────────────────────────────
 @auth_bp.route("/signup", methods=["POST"])
-@limiter.limit("5 per minute")
+@limiter.limit("20 per minute")
 @validate_schema(SignupSchema)
 def signup(validated_data):
     mail = validated_data.mail
@@ -43,6 +43,7 @@ def signup(validated_data):
         }), 201
     except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.exception(f"Erreur DB dans signup: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -66,6 +67,7 @@ def login(validated_data):
             "user": agri.to_dict(),
         })
     except SQLAlchemyError as e:
+        current_app.logger.exception(f"Erreur DB dans login: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -95,6 +97,7 @@ def get_me():
             return jsonify({"error": "Utilisateur non trouvé"}), 401
         return jsonify({"data": agri.to_dict()})
     except SQLAlchemyError as e:
+        current_app.logger.exception(f"Erreur DB dans get_me: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -122,10 +125,14 @@ def update_me(validated_data):
                 return jsonify({"error": "Cet email est déjà utilisé"}), 409
             agri.mail = mail
 
+        if validated_data.heure_sync is not None:
+            agri.heure_sync = validated_data.heure_sync
+
         db.session.commit()
         return jsonify({"data": agri.to_dict(), "message": "Profil mis à jour"})
     except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.exception(f"Erreur DB dans update_me: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -148,4 +155,5 @@ def change_password(validated_data):
         return jsonify({"message": "Mot de passe modifié"})
     except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.exception(f"Erreur DB dans change_password: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500

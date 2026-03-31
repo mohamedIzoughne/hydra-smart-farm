@@ -3,7 +3,7 @@ from app import db
 
 
 class GenerePar(enum.Enum):
-    Systeme = "Système"
+    Systeme = "Systeme"
     Manuel = "Manuel"
 
 

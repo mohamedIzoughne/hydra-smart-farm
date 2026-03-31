@@ -30,6 +30,7 @@ export interface AuthUser {
   id_agriculteur: number;
   nom: string;
   mail: string;
+  heure_sync?: number;
   date_inscription?: string;
 }
 

@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from sqlalchemy.exc import SQLAlchemyError, OperationalError
 from app import db
 from app.models.parcelle import Parcelle, TypeSol
@@ -35,6 +35,7 @@ def list_parcelles(current_user):
 
         return jsonify({"data": results, "total": len(results)})
     except SQLAlchemyError as e:
+        current_app.logger.exception(f"Erreur DB dans list_parcelles: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -48,6 +49,7 @@ def get_parcelle(id, current_user):
             return jsonify({"error": "Parcelle non trouvée"}), 404
         return jsonify({"data": data})
     except SQLAlchemyError as e:
+        current_app.logger.exception(f"Erreur DB dans get_parcelle: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -72,6 +74,7 @@ def create_parcelle(current_user, validated_data):
         return jsonify({"data": parcelle.to_dict()}), 201
     except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.exception(f"Erreur DB dans create_parcelle: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -99,6 +102,7 @@ def update_parcelle(id, current_user, validated_data):
         return jsonify({"data": parcelle.to_dict(), "message": "Mis à jour"})
     except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.exception(f"Erreur DB dans update_parcelle: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -114,6 +118,7 @@ def delete_parcelle(id, current_user):
         return jsonify({"message": "Parcelle supprimée"})
     except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.exception(f"Erreur DB dans delete_parcelle: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -142,12 +147,14 @@ def ouvrir_saison(id, current_user):
             db.session.commit()
         except OperationalError as oe:
             db.session.rollback()
+            current_app.logger.exception(f"OperationalError dans ouvrir_saison: {oe}")
             err_msg = str(oe.orig) if hasattr(oe, "orig") else str(oe)
             return jsonify({"error": err_msg}), 400
 
         return jsonify({"data": parcelle.to_dict(), "message": "Saison ouverte"})
     except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.exception(f"Erreur DB dans ouvrir_saison: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -161,16 +168,45 @@ def fermer_saison(id, current_user):
 
         parcelle.saison_active = False
         try:
+            # Drop the trigger in DB and use Python logic instead
+            from app.services.calcul_service import calcul_stress_hydrique
+            import json
+
+            # Calculate stress before committing is safe if we use the current database state
+            stress_data = calcul_stress_hydrique(parcelle.id_parcelle)
+
+            from app.models.stress_hydrique import StressHydrique, NiveauStress
+            new_stress = StressHydrique(
+                id_parcelle=parcelle.id_parcelle,
+                date_calcul=date.today(),
+                niveau_stress=NiveauStress(stress_data["niveau_stress"]),
+                besoin_total_saison=stress_data["besoin_total"],
+                capacite_source=stress_data["capacite_source"],
+                deficit_calcule=stress_data["deficit"],
+                alerte_active=stress_data["alerte_active"],
+                recommandation=f"Deficit hydrique: {stress_data['deficit']} L. Capacite source: {stress_data['capacite_source']} L. Envisagez des cultures moins gourmandes.",
+                cultures_suggere=json.dumps(stress_data["cultures_suggere"])
+            )
+            db.session.add(new_stress)
+
             db.session.commit()
         except OperationalError as oe:
             db.session.rollback()
+            current_app.logger.exception(f"OperationalError dans fermer_saison: {oe}")
             err_msg = str(oe.orig) if hasattr(oe, "orig") else str(oe)
             return jsonify({"error": "Erreur lors de la clôture", "detail": err_msg}), 500
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.exception(f"Erreur lors de la création du stress: {e}")
+            # Even if stress fails, we want to at least finish the season
+            parcelle.saison_active = False
+            db.session.commit()
 
         db.session.refresh(parcelle)
         return jsonify({"data": parcelle.to_dict(), "message": "Saison clôturée. Audit de stress généré."})
     except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.exception(f"Erreur DB dans fermer_saison: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -199,6 +235,7 @@ def historique_besoins(id, current_user):
 
         return jsonify({"data": [b.to_dict() for b in besoins], "page": page, "total": total, "pages": pages})
     except SQLAlchemyError as e:
+        current_app.logger.exception(f"Erreur DB dans historique_besoins: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500
 
 
@@ -210,4 +247,5 @@ def historique_stress(id, current_user):
         records = StressHydrique.query.filter_by(id_parcelle=id).order_by(StressHydrique.date_calcul.desc()).all()
         return jsonify({"data": [s.to_dict() for s in records]})
     except SQLAlchemyError as e:
+        current_app.logger.exception(f"Erreur DB dans historique_stress: {e}")
         return jsonify({"error": "Database error", "detail": str(e)}), 500

@@ -11,6 +11,7 @@ class Agriculteur(db.Model):
     mail = db.Column(db.String(150), nullable=False, unique=True)
     mot_de_passe = db.Column(db.String(255), nullable=False)
     date_inscription = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    heure_sync = db.Column(db.Integer, default=4)
     actif = db.Column(db.Boolean, default=True)
 
     parcelles = db.relationship("Parcelle", back_populates="agriculteur", lazy="dynamic")
@@ -24,5 +25,6 @@ class Agriculteur(db.Model):
             "nom": self.nom,
             "mail": self.mail,
             "date_inscription": self.date_inscription.isoformat() if self.date_inscription else None,
+            "heure_sync": self.heure_sync,
             "actif": self.actif,
         }

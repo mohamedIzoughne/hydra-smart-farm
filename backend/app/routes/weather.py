@@ -4,13 +4,13 @@ and optionally auto-create mesures + besoins from forecast data.
 """
 
 from datetime import datetime
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from app import db
 from app.models.parcelle import Parcelle
 from app.models.culture import Culture
 from app.models.mesure_climatique import MesureClimatique
-from app.models.besoin_eau import BesoinEau
+from app.models.besoin_eau import BesoinEau, GenerePar
 from app.services.weather_service import fetch_forecast, fetch_historical
 from app.services.calcul_service import calcul_volume_besoin
 from app.utils.auth_helpers import require_auth, check_parcelle_ownership
@@ -27,7 +27,8 @@ def get_forecast(parcelle_id, current_user):
     """
     try:
         parcelle = check_parcelle_ownership(parcelle_id, current_user)
-    except Exception:
+    except Exception as e:
+        current_app.logger.exception(f"Exception lors de la vérification de la parcelle: {e}")
         return jsonify({"error": "Parcelle introuvable ou accès refusé"}), 404
 
     if not parcelle.latitude or not parcelle.longitude:
@@ -42,6 +43,7 @@ def get_forecast(parcelle_id, current_user):
             float(parcelle.longitude),
             days=days,
         )
+        print('---The forecasts--', forecasts)
         return jsonify({
             "parcelle_id": parcelle_id,
             "latitude": float(parcelle.latitude),
@@ -51,6 +53,7 @@ def get_forecast(parcelle_id, current_user):
             "data": forecasts,
         })
     except Exception as e:
+        current_app.logger.exception(f"Erreur API OpenMeteo forecast: {e}")
         return jsonify({"error": "Erreur lors de la récupération météo", "detail": str(e)}), 502
 
 
@@ -63,7 +66,8 @@ def get_history(parcelle_id, current_user):
     """
     try:
         parcelle = check_parcelle_ownership(parcelle_id, current_user)
-    except Exception:
+    except Exception as e:
+        current_app.logger.exception(f"Exception lors de la vérification de la parcelle: {e}")
         return jsonify({"error": "Parcelle introuvable ou accès refusé"}), 404
 
     if not parcelle.latitude or not parcelle.longitude:
@@ -93,6 +97,7 @@ def get_history(parcelle_id, current_user):
             "data": history,
         })
     except Exception as e:
+        current_app.logger.exception(f"Erreur API OpenMeteo Archives: {e}")
         return jsonify({"error": "Erreur lors de la récupération historique", "detail": str(e)}), 502
 
 
@@ -107,7 +112,8 @@ def sync_forecast(parcelle_id, current_user):
     """
     try:
         parcelle = check_parcelle_ownership(parcelle_id, current_user)
-    except Exception:
+    except Exception as e:
+        current_app.logger.exception(f"Exception lors de la vérification de la parcelle: {e}")
         return jsonify({"error": "Parcelle introuvable ou accès refusé"}), 404
 
     if not parcelle.latitude or not parcelle.longitude:
@@ -125,7 +131,9 @@ def sync_forecast(parcelle_id, current_user):
             float(parcelle.longitude),
             days=days,
         )
+        print('forecasts---', forecasts)
     except Exception as e:
+        current_app.logger.exception(f"Erreur d'API OpenMeteo: {e}")
         return jsonify({"error": "Erreur API météo", "detail": str(e)}), 502
 
     culture = db.session.get(Culture, parcelle.id_culture) if parcelle.id_culture else None
@@ -143,13 +151,37 @@ def sync_forecast(parcelle_id, current_user):
                 date_prevision=date_prev,
             ).first()
 
-            if existing:
-                skipped_dates.append(day["date"])
-                continue
-
             temp = day.get("temperature_mean") or day.get("temperature_max") or 0
             pluie = day.get("precipitation_sum") or 0
             humidity = day.get("relative_humidity_mean")
+
+            if existing:
+                existing.temperature = temp
+                existing.pluie = pluie
+                existing.humidite = humidity
+                
+                # Update besoin if needed
+                if culture:
+                    volume = calcul_volume_besoin(parcelle, culture, existing)
+                    existing_besoin = BesoinEau.query.filter_by(
+                        id_parcelle=parcelle_id,
+                        date_besoin=date_prev
+                    ).first()
+                    
+                    if not existing_besoin:
+                        besoin = BesoinEau(
+                            id_parcelle=parcelle_id,
+                            id_mesure=existing.id_mesure,
+                            date_besoin=date_prev,
+                            volume_recommande=volume,
+                            genere_par=GenerePar.Systeme,
+                        )
+                        db.session.add(besoin)
+                    elif existing_besoin.volume_applique is None:
+                        existing_besoin.volume_recommande = volume
+
+                skipped_dates.append(day["date"])
+                continue
 
             mesure = MesureClimatique(
                 id_parcelle=parcelle_id,
@@ -170,7 +202,7 @@ def sync_forecast(parcelle_id, current_user):
                     id_mesure=mesure.id_mesure,
                     date_besoin=date_prev,
                     volume_recommande=volume,
-                    genere_par="Système",
+                    genere_par=GenerePar.Systeme,
                 )
                 db.session.add(besoin)
 
@@ -190,9 +222,11 @@ def sync_forecast(parcelle_id, current_user):
             "parcelle_id": parcelle_id,
         }), 201
 
-    except IntegrityError:
+    except IntegrityError as e:
         db.session.rollback()
+        current_app.logger.exception(f"Erreur d'intégrité (mesure déjà existante): {e}")
         return jsonify({"error": "Conflit de données (mesure déjà existante)"}), 409
     except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.exception(f"Erreur de base de données dans météo sync: {e}")
         return jsonify({"error": "Erreur base de données", "detail": str(e)}), 500
