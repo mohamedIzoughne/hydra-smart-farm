@@ -1,73 +1,110 @@
-# Welcome to your Lovable project
+# Hydra Smart Farm
 
-## Project info
+Hydra Smart Farm is a modern web application designed for smart agriculture management, focusing on hydric stress monitoring and culture suggestions.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## 🚀 Project Architecture
 
-## How can I edit this code?
+- **Frontend**: React + Vite + Tailwind CSS (located in the root directory).
+- **Backend**: Flask + SQLAlchemy + MySQL (located in the `backend/` directory).
+- **Database**: MySQL 8.0.
 
-There are several ways of editing your application.
+---
 
-**Use Lovable**
+## 🛠️ Prerequisites
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+Before you begin, ensure you have the following installed:
+- [Node.js](https://nodejs.org/) (v18+ recommended)
+- [Python 3.9+](https://www.python.org/)
+- [Docker & Docker Compose](https://www.docker.com/) (Optional, for database)
+- [MySQL Server](https://www.mysql.com/) (Optional, if not using Docker)
 
-Changes made via Lovable will be committed automatically to this repo.
+---
 
-**Use your preferred IDE**
+## 📦 Installation & Setup
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### 1. Database Setup
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+You have two options to set up the database:
 
-Follow these steps:
+#### Option A: Using Docker (Recommended)
+This is the easiest way to get the database running with all tables and seed data pre-loaded.
+```bash
+# From the project root
+docker-compose up -d
+```
+*Note: The database will be accessible on `localhost:3307` as configured in `docker-compose.yml`.*
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+#### Option B: Normal MySQL Installation
+If you prefer to use a local MySQL installation:
+1. Log in to your MySQL terminal: `mysql -u root -p`
+2. Create the database and user:
+   ```sql
+   CREATE DATABASE smartagri;
+   CREATE USER 'agriuser'@'localhost' IDENTIFIED BY 'agripassword';
+   GRANT ALL PRIVILEGES ON smartagri.* TO 'agriuser'@'localhost';
+   FLUSH PRIVILEGES;
+   ```
+3. Import the schema and seed data:
+   ```bash
+   mysql -u agriuser -p smartagri < backend/db_init.sql
+   mysql -u agriuser -p smartagri < backend/seed.sql
+   ```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+   also currently I'm using port 3307, but when using normal mysql, you should use port 3306(default) so then you need to change the port in the .env file to 3306
 
-# Step 3: Install the necessary dependencies.
-npm i
+### 2. Backend Setup
+```bash
+# Navigate to the backend directory
+cd backend
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+# Create a virtual environment
+python -m venv .venv
+
+# Activate the virtual environment
+# On Windows:
+# .venv\Scripts\activate
+# On Linux/macOS:
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure environment variables
+cp .env.example .env
+# Edit .env and update DATABASE_URL if necessary
+# If using Docker (Port 3307): 
+# DATABASE_URL=mysql+pymysql://agriuser:agripassword@localhost:3307/smartagri
+# If using Local MySQL (Port 3306):
+# DATABASE_URL=mysql+pymysql://agriuser:agripassword@localhost:3306/smartagri
+
+# Run the backend
+python run.py
 ```
 
-**Edit a file directly in GitHub**
+### 3. Frontend Setup
+```bash
+# From the project root (not backend)
+npm install
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+# Start the development server
+npm run dev
+```
+The application should now be running at `http://localhost:8080`.
 
-**Use GitHub Codespaces**
+---
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## ⚙️ Configuration (.env)
 
-## What technologies are used for this project?
+The `backend/.env` file contains important configurations:
+- `SECRET_KEY`: Used for session security.
+- `JWT_SECRET_KEY`: Used for JWT authentication.
+- `DATABASE_URL`: Connection string for SQLAlchemy.
+- `CORS_ORIGINS`: Allowed frontend origins (defaults to `http://localhost:8080`).
 
-This project is built with:
+---
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## 📖 Features
+- **Real-time Monitoring**: Track hydric stress levels across different parcelles.
+- **Culture Suggestions**: Intelligent recommendations for alternative cultures.
+- **Alert System**: Notifications for critical agricultural conditions.
+- **User Management**: Secure login and registration.
