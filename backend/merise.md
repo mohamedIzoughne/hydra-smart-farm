@@ -14,21 +14,21 @@ Le MCD représente les entités et leurs relations sans contraintes techniques.
 - **Parcelle** : `id_parcelle`, `surface`, `type_de_sol` (Sable, Limon, Argile), `capacite_eau`, `latitude`, `longitude`, `saison_active`, `date_debut_saison`.
 - **Mesure Climatique** : `id_mesure`, `date_prevision`, `temperature`, `pluie`, `humidite`, `source_api`.
 - **Besoin en Eau** : `id_besoin`, `date_besoin`, `volume_recommande`, `volume_applique`, `genere_par` (Système, Manuel).
-- **Stress Hydrique** : `id_stress`, `date_calcul`, `niveau_stress`, `besoin_total_saison`, `capacite_source`, `deficit_calcule`, `alerte_active`, `recommandation`, `cultures_suggere`.
+- **Stress Hydrique** : `id_stress`, `date_calcul`, `niveau_stress` (Faible, Moyen, Élevé, Critique), `besoin_total_saison`, `capacite_source`, `deficit_calcule`, `alerte_active`, `recommandation`, `cultures_suggere`.
 
 ### Relations
-- **Posséder** : Un `Agriculteur` possède plusieurs `Parcelles` (1,N). Une `Parcelle` appartient à un seul `Agriculteur` (1,1).
-- **Cultiver** : Une `Parcelle` peut avoir une `Culture` (0,1). Une `Culture` peut être associée à plusieurs `Parcelles` (0,N).
-- **Enregistrer** : Une `Parcelle` possède plusieurs `Mesures Climatiques` (1,N).
-- **Nécessiter** : Une `Parcelle` possède plusieurs records de `Besoin en Eau` (1,N).
-- **Lier** : Une `Mesure Climatique` génère un unique `Besoin en Eau` (1,1).
-- **Auditer** : Une `Parcelle` possède plusieurs rapports de `Stress Hydrique` (1,N), généralement générés en fin de saison.
+- **Posséder (1,N)** : Un `Agriculteur` possède plusieurs `Parcelles`. Une `Parcelle` appartient à un seul `Agriculteur`.
+- **Cultiver (0,N)** : Une `Parcelle` peut avoir une `Culture`. Une `Culture` peut être associée à plusieurs `Parcelles`.
+- **Enregistrer (1,N)** : Une `Parcelle` enregistre plusieurs `Mesures Climatiques`.
+- **Nécessiter (1,N)** : Une `Parcelle` génère plusieurs records de `Besoin en Eau`.
+- **Lier (1,1)** : Une `Mesure Climatique` est liée à un unique `Besoin en Eau` qu'elle a permis de calculer.
+- **Auditer (1,N)** : Une `Parcelle` possède plusieurs rapports de `Stress Hydrique` (audits de fin de saison).
 
 ---
 
 ## 2. Modèle Logique des Données (MLD)
 
-Le MLD traduit le MCD en structures tabulaires.
+Le MLD traduit le MCD en structures tabulaires prêtes pour le relationnel.
 
 - **AGRICULTEUR** (<u>id_agriculteur</u>, nom, mail, mot_de_passe, date_inscription, actif)
 - **CULTURE** (<u>id_culture</u>, nom_culture, besoin_eau_base, seuil_stress_hyd, coeff_sol_sable, coeff_sol_limon, coeff_sol_argile)
@@ -41,44 +41,87 @@ Le MLD traduit le MCD en structures tabulaires.
 
 ## 3. Modèle Physique des Données (MPD)
 
-Implémentation SQL (MySQL / InnoDB).
+Implémentation complète SQL (MySQL / InnoDB).
 
 ```sql
+-- Table des utilisateurs
 CREATE TABLE agriculteur (
-    id_agriculteur INT AUTO_INCREMENT PRIMARY KEY,
-    nom VARCHAR(100) NOT NULL,
-    mail VARCHAR(150) UNIQUE NOT NULL,
-    mot_de_passe VARCHAR(255) NOT NULL,
+    id_agriculteur  INT AUTO_INCREMENT PRIMARY KEY,
+    nom             VARCHAR(100) NOT NULL,
+    mail            VARCHAR(150) UNIQUE NOT NULL,
+    mot_de_passe    VARCHAR(255) NOT NULL,
     date_inscription DATETIME DEFAULT CURRENT_TIMESTAMP,
-    actif BOOLEAN DEFAULT TRUE
-);
+    actif           BOOLEAN DEFAULT TRUE
+) ENGINE=InnoDB;
 
+-- Table des types de cultures
 CREATE TABLE culture (
-    id_culture INT AUTO_INCREMENT PRIMARY KEY,
-    nom_culture VARCHAR(80) UNIQUE NOT NULL,
+    id_culture      INT AUTO_INCREMENT PRIMARY KEY,
+    nom_culture     VARCHAR(80) UNIQUE NOT NULL,
     besoin_eau_base DECIMAL(8,2) NOT NULL,
     seuil_stress_hyd DECIMAL(5,2) NOT NULL,
     coeff_sol_sable DECIMAL(4,2) DEFAULT 1.30,
     coeff_sol_limon DECIMAL(4,2) DEFAULT 1.00,
     coeff_sol_argile DECIMAL(4,2) DEFAULT 0.75
-);
+) ENGINE=InnoDB;
 
+-- Table des parcelles
 CREATE TABLE parcelle (
-    id_parcelle INT AUTO_INCREMENT PRIMARY KEY,
-    id_agriculteur INT NOT NULL,
-    id_culture INT,
-    surface DECIMAL(10,2) NOT NULL,
-    type_de_sol ENUM('Sable', 'Limon', 'Argile') NOT NULL,
-    capacite_eau DECIMAL(10,2) NOT NULL,
-    latitude DECIMAL(11,8),
-    longitude DECIMAL(11,8),
-    saison_active BOOLEAN DEFAULT FALSE,
-    date_debut_saison DATE,
-    FOREIGN KEY (id_agriculteur) REFERENCES agriculteur(id_agriculteur),
-    FOREIGN KEY (id_culture) REFERENCES culture(id_culture)
-);
+    id_parcelle     INT AUTO_INCREMENT PRIMARY KEY,
+    id_agriculteur  INT NOT NULL,
+    id_culture      INT NULL,
+    surface         DECIMAL(10,2) NOT NULL,
+    type_de_sol     ENUM('Sable', 'Limon', 'Argile') NOT NULL,
+    capacite_eau    DECIMAL(10,2) NOT NULL,
+    latitude        DECIMAL(11,8),
+    longitude       DECIMAL(11,8),
+    saison_active   BOOLEAN DEFAULT FALSE,
+    date_debut_saison DATE NULL,
+    CONSTRAINT fk_parcelle_agriculteur FOREIGN KEY (id_agriculteur) REFERENCES agriculteur(id_agriculteur) ON DELETE RESTRICT,
+    CONSTRAINT fk_parcelle_culture FOREIGN KEY (id_culture) REFERENCES culture(id_culture) ON DELETE SET NULL
+) ENGINE=InnoDB;
 
--- (Autres tables : mesure_climatique, besoin_eau, stress_hydrique avec FK vers parcelle)
+-- Table des données météo par parcelle
+CREATE TABLE mesure_climatique (
+    id_mesure       INT AUTO_INCREMENT PRIMARY KEY,
+    id_parcelle     INT NOT NULL,
+    date_prevision  DATE NOT NULL,
+    temperature     DECIMAL(5,2) NOT NULL,
+    pluie           DECIMAL(7,2) NOT NULL,
+    humidite        DECIMAL(5,2) NULL,
+    source_api      VARCHAR(50) DEFAULT 'OpenMeteo',
+    CONSTRAINT uq_mesure_parcelle_date UNIQUE (id_parcelle, date_prevision),
+    CONSTRAINT fk_mesure_parcelle FOREIGN KEY (id_parcelle) REFERENCES parcelle(id_parcelle) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Table des calculs d'irrigation recommandés
+CREATE TABLE besoin_eau (
+    id_besoin           INT AUTO_INCREMENT PRIMARY KEY,
+    id_parcelle         INT NOT NULL,
+    id_mesure           INT NOT NULL,
+    date_besoin         DATE NOT NULL,
+    volume_recommande   DECIMAL(10,2) NOT NULL,
+    volume_applique     DECIMAL(10,2) NULL,
+    genere_par          ENUM('Système', 'Manuel') DEFAULT 'Système',
+    CONSTRAINT uq_besoin_parcelle_date UNIQUE (id_parcelle, date_besoin),
+    CONSTRAINT fk_besoin_parcelle FOREIGN KEY (id_parcelle) REFERENCES parcelle(id_parcelle) ON DELETE CASCADE,
+    CONSTRAINT fk_besoin_mesure FOREIGN KEY (id_mesure) REFERENCES mesure_climatique(id_mesure) ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+-- Table des bilans de stress hydrique
+CREATE TABLE stress_hydrique (
+    id_stress           INT AUTO_INCREMENT PRIMARY KEY,
+    id_parcelle         INT NOT NULL,
+    date_calcul         DATE NOT NULL DEFAULT (CURDATE()),
+    niveau_stress       ENUM('Faible', 'Moyen', 'Élevé', 'Critique') NOT NULL,
+    besoin_total_saison DECIMAL(12,2) NOT NULL,
+    capacite_source     DECIMAL(10,2) NOT NULL,
+    deficit_calcule     DECIMAL(12,2) NOT NULL,
+    alerte_active       BOOLEAN DEFAULT FALSE,
+    recommandation      TEXT NULL,
+    cultures_suggere    TEXT NULL,
+    CONSTRAINT fk_stress_parcelle FOREIGN KEY (id_parcelle) REFERENCES parcelle(id_parcelle) ON DELETE CASCADE
+) ENGINE=InnoDB;
 ```
 
 ---
@@ -93,22 +136,20 @@ CREATE TABLE parcelle (
     - **Simulation de Stress** : Calcule le cumul des besoins recommandés vs la capacité réelle de la parcelle.
 - **`ParcelleService`** : Gère le cycle de vie des parcelles, les validations et l'agrégation de données contextuelles.
 
-### Triggers et Procédures (SQL & Python)
-- **`trg_calcul_besoin_eau`** : Se déclenche après chaque insertion dans `mesure_climatique` pour générer automatiquement le `besoin_eau` du lendemain.
-- **`trg_ouverture_saison`** : Vérifie qu'une culture est bien assignée avant d'activer une saison.
-- **`sp_audit_fin_saison`** : Procédure stockée qui calcule le bilan hydrique total lors de la clôture de la saison.
-- **`trg_alerte_stress`** : Détermine le niveau de stress (Faible, Moyen, Élevé, Critique) en fonction du déficit calculé.
+### Triggers et Procédures
+- **`trg_calcul_besoin_eau`** : Automatise la création d'un record `besoin_eau` dès qu'une `mesure_climatique` est insérée pour une parcelle active.
+- **`trg_ouverture_saison`** : Bloque l'activation d'une saison si aucune culture n'est sélectionnée.
+- **`sp_audit_fin_saison`** (SQL) / **`calcul_stress_hydrique`** (Python) : Réalise le bilan complet de la saison lors de sa clôture.
+- **`trg_alerte_stress`** : Calcule le ratio déficit/seuil pour catégoriser le niveau de stress.
 
 ---
 
 ## 5. Workflow du Projet
 
-1. **Initialisation** : L'agriculteur crée son compte et définit ses parcelles (surface, type de sol, coordonnées).
-2. **Lancement de Saison** : L'agriculteur sélectionne une culture et active la saison sur une parcelle.
-3. **Synchronisation Quotidienne (04h00)** :
-    - Le scheduler (`APScheduler`) parcourt toutes les parcelles actives.
-    - Il récupère la météo du jour via `WeatherService`.
-    - Il enregistre la `Mesure Climatique`.
-    - Le système calcule automatiquement le `Besoin en Eau` recommandé pour le lendemain.
-4. **Suivi** : L'agriculteur consulte son tableau de bord, voit les recommandations d'irrigation et peut déclarer le volume réellement appliqué.
-5. **Clôture et Audit** : En fin de récolte, la saison est désactivée. Un rapport de `Stress Hydrique` est généré, incluant des recommandations de cultures alternatives si un déficit important a été constaté.
+1. **Configuration** : L'agriculteur crée son profil et ses parcelles avec leurs caractéristiques physiques (sol, surface, localisation).
+2. **Cycle Cultural** : Sélection d'une culture et ouverture de la saison (`date_debut_saison`).
+3. **Automatisation Quotidienne** :
+    - À **04h00**, le backend récupère les prévisions météo du jour pour chaque parcelle active.
+    - Les mesures sont stockées et déclenchent le calcul du volume d'eau à apporter.
+4. **Gestion de l'Irrigation** : L'agriculteur reçoit ses recommandations et peut consigner l'eau réellement apportée via l'interface.
+5. **Analyse de Fin de Saison** : À la clôture, un audit de stress hydrique est généré. Si le déficit était trop élevé, le système suggère des cultures plus adaptées aux ressources en eau de la parcelle.
